@@ -17,12 +17,16 @@
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
 
+#define TEXT_X 100
+#define TEXT_Y 100
+
 // TODO: maybe globals are not a good idea, but i guess it's fine for now
-SDL_Window* window;
+SDL_Window*   window;
 SDL_Renderer* renderer;
-TTF_Font* font;
-SDL_Surface* text_surf;
-SDL_Texture* text_tex;
+
+TTF_TextEngine* tengine;
+TTF_Font*       font;
+TTF_Text*       text;
 
 bool running = true;
 
@@ -37,11 +41,7 @@ static void mainloop() {
     SDL_SetRenderDrawColor(renderer, 34, 35, 42, 255);
     SDL_RenderClear(renderer);
 
-
-    SDL_FRect dst_rect = {
-        50.0f, 50.0f, (float)text_surf->w, (float)text_surf->h
-    };
-    SDL_RenderTexture(renderer, text_tex, NULL, &dst_rect);
+    TTF_DrawRendererText(text, TEXT_X, TEXT_Y);
 
     SDL_RenderPresent(renderer);
 
@@ -68,7 +68,7 @@ bool init() {
         goto e1;
     }
 
-    window = SDL_CreateWindow("Minimal SDL3 Window", 800, 600, 0);
+    window = SDL_CreateWindow("C for Web", 800, 600, 0);
     if (window == NULL) {
         E(SDL_CreateWindow);
         goto e2;
@@ -86,22 +86,32 @@ bool init() {
         goto e4;
     }
 
-    const SDL_Color text_color = { 255, 255, 255 };
-    text_surf = TTF_RenderText_Blended(font, "Hello mars!", 0, text_color);
-    if (text_surf == NULL) {
-        E(TTF_RenderText_Blended);
+    tengine = TTF_CreateRendererTextEngine(renderer);
+    if (tengine == NULL) {
+        E(TTF_CreateRendererTextEngine);
         goto e5;
     }
 
-    text_tex = SDL_CreateTextureFromSurface(renderer, text_surf);
-    if (text_tex == NULL) {
-        E(SDL_CreateTextureFromSurface);
+    char str[9999];
+    char hello[] = "Hello, ";
+    for (int i = 0; i < 1000; ++i) {
+        strcpy(str + i * (sizeof(hello) - 1), hello);
+    }
+    str[(sizeof(hello) - 1) * 1000] = '\0';
+
+    text = TTF_CreateText(tengine, font, str, 0);
+    if (text == NULL) {
+        E(TTF_CreateText);
         goto e6;
     }
 
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+    TTF_SetTextWrapWidth(text, w - TEXT_X * 2);
+
     return true;
 
-e6: SDL_DestroySurface(text_surf);
+e6: TTF_DestroyRendererTextEngine(tengine);
 e5: TTF_CloseFont(font);
 e4: SDL_DestroyRenderer(renderer);
 e3: SDL_DestroyWindow(window);
