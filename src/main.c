@@ -6,6 +6,7 @@
 
 #ifdef __EMSCRIPTEN__
     #define WEB true
+    #include <emscripten/html5.h>
     #include <emscripten.h>
 #else
     #define WEB false
@@ -17,31 +18,57 @@
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
 
-#define TEXT_X 100
-#define TEXT_Y 100
+#define DESCRIPTION \
+    "Webdev that is actually fun."
+
+#define MAINTEXT_X 40
+#define MAINTEXT_Y 100
 
 // TODO: maybe globals are not a good idea, but i guess it's fine for now
+int w, h;
+
 SDL_Window*   window;
 SDL_Renderer* renderer;
 
 TTF_TextEngine* tengine;
-TTF_Font*       font;
-TTF_Text*       text;
+
+struct {
+    TTF_Font
+        *header,
+        *maintext;
+} f;
+
+struct {
+    TTF_Text
+        *c_for_web,
+        *description;
+} t;
 
 bool running = true;
+
+static void update_layout() {
+    SDL_GetWindowSize(window, &w, &h);
+    TTF_SetTextWrapWidth(t.description, w - MAINTEXT_X * 2);
+}
 
 static void mainloop() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             running = false;
+        } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+            update_layout();
         }
     }
 
-    SDL_SetRenderDrawColor(renderer, 34, 35, 42, 255);
+    SDL_SetRenderDrawColor(renderer, 7, 7, 7, 255);
     SDL_RenderClear(renderer);
 
-    TTF_DrawRendererText(text, TEXT_X, TEXT_Y);
+    int cfw_header_w, cfw_header_h;
+    TTF_GetTextSize(t.c_for_web, &cfw_header_w, &cfw_header_h);
+
+    TTF_DrawRendererText(t.c_for_web, ((float)w / 2) - ((float)cfw_header_w / 2), 10);
+    TTF_DrawRendererText(t.description, MAINTEXT_X, MAINTEXT_Y);
 
     SDL_RenderPresent(renderer);
 
@@ -59,60 +86,50 @@ static void mainloop() {
 }
 
 bool init() {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        E(SDL_Init);
-        goto e0;
-    }
-    if (!TTF_Init()) {
-        E(TTF_Init);
-        goto e1;
-    }
+    if (!SDL_Init(SDL_INIT_VIDEO))
+        { E(SDL_Init); goto e0; }
+    if (!TTF_Init())
+        { E(TTF_Init); goto e1; }
 
-    window = SDL_CreateWindow("C for Web", 800, 600, 0);
-    if (window == NULL) {
-        E(SDL_CreateWindow);
-        goto e2;
-    }
+#if WEB
+    emscripten_get_canvas_element_size("#canvas", &w, &h);
+#else
+    w = 800, h = 600;
+#endif
+
+    window = SDL_CreateWindow("C for Web", w, h, SDL_WINDOW_RESIZABLE);
+    if (window == NULL)
+        { E(SDL_CreateWindow); goto e2; }
 
     renderer = SDL_CreateRenderer(window, NULL);
-    if (renderer == NULL) {
-        E(SDL_CreateRenderer);
-        goto e3;
-    }
+    if (renderer == NULL)
+        { E(SDL_CreateRenderer); goto e3; }
 
-    font = TTF_OpenFont("assets/nunito/NunitoSans.ttf", 24.0f);
-    if (font == NULL) {
-        E(TTF_OpenFont);
-        goto e4;
-    }
+    f.header = TTF_OpenFont("assets/nunito/NunitoSans.ttf", 34);
+    if (f.header == NULL) { E(TTF_OpenFont); goto e4; }
+    TTF_SetFontStyle(f.header, TTF_STYLE_BOLD|TTF_STYLE_UNDERLINE);
+
+    f.maintext = TTF_OpenFont("assets/nunito/NunitoSans.ttf", 24);
+    if (f.maintext == NULL) { E(TTF_OpenFont); goto e5; }
 
     tengine = TTF_CreateRendererTextEngine(renderer);
-    if (tengine == NULL) {
-        E(TTF_CreateRendererTextEngine);
-        goto e5;
-    }
+    if (tengine == NULL)
+        { E(TTF_CreateRendererTextEngine); goto e6; }
 
-    char str[9999];
-    char hello[] = "Hello, ";
-    for (int i = 0; i < 1000; ++i) {
-        strcpy(str + i * (sizeof(hello) - 1), hello);
-    }
-    str[(sizeof(hello) - 1) * 1000] = '\0';
+    t.c_for_web = TTF_CreateText(tengine, f.header, "C For Web", 0);
+    if (t.c_for_web == NULL) { E(TTF_CreateText); goto e7; }
 
-    text = TTF_CreateText(tengine, font, str, 0);
-    if (text == NULL) {
-        E(TTF_CreateText);
-        goto e6;
-    }
+    t.description = TTF_CreateText(tengine, f.maintext, DESCRIPTION, 0);
+    if (t.description == NULL) { E(TTF_CreateText); goto e8; }
 
-    int w, h;
-    SDL_GetWindowSize(window, &w, &h);
-    TTF_SetTextWrapWidth(text, w - TEXT_X * 2);
+    update_layout();
 
     return true;
 
-e6: TTF_DestroyRendererTextEngine(tengine);
-e5: TTF_CloseFont(font);
+e8: TTF_DestroyText(t.c_for_web);
+e7: TTF_DestroyRendererTextEngine(tengine);
+e6: TTF_CloseFont(f.maintext);
+e5: TTF_CloseFont(f.header);
 e4: SDL_DestroyRenderer(renderer);
 e3: SDL_DestroyWindow(window);
 e2: TTF_Quit();
