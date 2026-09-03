@@ -1,4 +1,5 @@
 EMCC ?= emcc
+CC   ?= gcc
 
 SRC_DIR     := src
 INCLUDE_DIR := include
@@ -14,12 +15,12 @@ rwildcard = \
 	$(filter $(subst *,%,$(2)),$(wildcard $(1)/$(2)))
 
 SRCS   := $(call rwildcard,src/,*.c)
-TARGET := $(BUILD_DIR)/index.html
+WEB_TARGET := $(BUILD_DIR)/index.html
 
 INCLUDE_PATHS := \
 	-Iinclude
 
-CFLAGS := -O2 -Wall \
+EM_CFLAGS := -O2 -Wall \
 		 $(INCLUDE_PATHS) \
          $(shell empack-config --cflags sdl3 sdl3-image 2>/dev/null)
 
@@ -33,11 +34,23 @@ EMFLAGS := \
 		--shell-file $(EMSHELL) \
 		--preload-file $(ASSETS_DIR)
 
-all: $(TARGET)
+NATIVE_CFLAGS := -O2 -Wall $(INCLUDE_PATHS)
+NATIVE_LDFLAGS := -lSDL3 -lSDL3_ttf
+NATIVE_TARGET := $(BUILD_DIR)/app
 
-$(TARGET): $(SRCS) $(EMSHELL)
+all: $(WEB_TARGET)
+
+$(WEB_TARGET): $(SRCS) $(EMSHELL)
 	@mkdir -p $(BUILD_DIR)
-	$(EMCC) $(CFLAGS) $(SRCS) $(LDFLAGS) $(EMFLAGS) -o $(TARGET)
+	$(EMCC) $(EM_CFLAGS) $(SRCS) $(EMFLAGS) -o $(WEB_TARGET)
+
+native: $(NATIVE_TARGET)
+$(NATIVE_TARGET): $(SRCS)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(SRCS) $(NATIVE_CFLAGS) $(NATIVE_LDFLAGS) -o $@
+
+run: native
+	$(NATIVE_TARGET)
 
 serve: all
 	python3 -m http.server 8080 --directory $(BUILD_DIR)
@@ -45,4 +58,4 @@ serve: all
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean serve
+.PHONY: all clean serve native run
