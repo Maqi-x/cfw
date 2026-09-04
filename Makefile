@@ -19,19 +19,19 @@ rwildcard = \
 	$(foreach d,$(wildcard $(1)/*),$(call rwildcard,$(d),$(2))) \
 	$(filter $(subst *,%,$(2)),$(wildcard $(1)/$(2)))
 
-SRCS   := $(call rwildcard,src/,*.c) $(MD4C_SRCS)
-WEB_TARGET := $(BUILD_DIR)/index.html
+SRCS   := $(call rwildcard,$(SRC_DIR),*.c) $(MD4C_SRCS)
+ASSET_FILES := $(call rwildcard,$(ASSETS_DIR),*)
 
 INCLUDE_PATHS := \
 	-Iinclude \
 	-Ideps/vector \
 	-I$(MD4C_DIR)/src
 
-EM_CFLAGS := -O2 -Wall \
+WEB_CFLAGS := -O2 -Wall \
 		 $(INCLUDE_PATHS) \
          $(shell empack-config --cflags sdl3 sdl3-image 2>/dev/null)
 
-EMFLAGS := \
+WEB_EMFLAGS := \
 		-sUSE_SDL=3 \
 		-sUSE_SDL_TTF=3 \
         -sMAX_WEBGL_VERSION=2 \
@@ -41,9 +41,15 @@ EMFLAGS := \
 		--shell-file $(EMSHELL) \
 		--preload-file $(ASSETS_DIR)
 
+WEB_TARGET := $(BUILD_DIR)/index.html
+
 NATIVE_CFLAGS := -Og -Wall -g $(INCLUDE_PATHS)
 NATIVE_LDFLAGS := -lSDL3 -lSDL3_ttf
 NATIVE_TARGET := $(BUILD_DIR)/app
+
+WEB_OBJS    := $(SRCS:%=$(BUILD_DIR)/web/%.o)
+NATIVE_OBJS := $(SRCS:%=$(BUILD_DIR)/native/%.o)
+-include $(WEB_OBJS:.o=.d) $(NATIVE_OBJS:.o=.d)
 
 .PHONY: all submodules clean serve web native run
 all: web native
@@ -53,13 +59,21 @@ native: submodules $(NATIVE_TARGET)
 submodules:
 	git submodule update --init --recursive
 
-$(WEB_TARGET): $(SRCS) $(EMSHELL)
-	@mkdir -p $(BUILD_DIR)
-	$(EMCC) $(EM_CFLAGS) $(SRCS) $(EMFLAGS) -o $(WEB_TARGET)
+$(BUILD_DIR)/web/%.o: %
+	@mkdir -p $(dir $@)
+	$(EMCC) $(WEB_CFLAGS) -MMD -MP -c -o $@ $<
 
-$(NATIVE_TARGET): $(SRCS)
+$(BUILD_DIR)/native/%.o: %
+	@mkdir -p $(dir $@)
+	$(CC) $(NATIVE_CFLAGS) -MMD -MP -c -o $@ $<
+
+$(WEB_TARGET): $(WEB_OBJS) $(ASSET_FILES) $(EMSHELL)
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $(SRCS) $(NATIVE_CFLAGS) $(NATIVE_LDFLAGS) -o $@
+	$(EMCC) $(WEB_OBJS) $(WEB_EMFLAGS) -o $(WEB_TARGET)
+
+$(NATIVE_TARGET): $(NATIVE_OBJS)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(NATIVE_OBJS) $(NATIVE_LDFLAGS) -o $@
 
 run: native
 	$(NATIVE_TARGET)
