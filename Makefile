@@ -10,15 +10,22 @@ ASSETS_DIR  := assets
 # $(SHELL) in make has a special meaning
 EMSHELL := $(SRC_DIR)/shell.html
 
+MD4C_DIR    := deps/md4c
+MD4C_SRCS   := $(MD4C_DIR)/src/md4c.c \
+               $(MD4C_DIR)/src/md4c-html.c \
+               $(MD4C_DIR)/src/entity.c
+
 rwildcard = \
 	$(foreach d,$(wildcard $(1)/*),$(call rwildcard,$(d),$(2))) \
 	$(filter $(subst *,%,$(2)),$(wildcard $(1)/$(2)))
 
-SRCS   := $(call rwildcard,src/,*.c)
+SRCS   := $(call rwildcard,src/,*.c) $(MD4C_SRCS)
 WEB_TARGET := $(BUILD_DIR)/index.html
 
 INCLUDE_PATHS := \
-	-Iinclude
+	-Iinclude \
+	-Ideps/vector \
+	-I$(MD4C_DIR)/src
 
 EM_CFLAGS := -O2 -Wall \
 		 $(INCLUDE_PATHS) \
@@ -34,17 +41,22 @@ EMFLAGS := \
 		--shell-file $(EMSHELL) \
 		--preload-file $(ASSETS_DIR)
 
-NATIVE_CFLAGS := -O2 -Wall $(INCLUDE_PATHS)
+NATIVE_CFLAGS := -Og -Wall -g $(INCLUDE_PATHS)
 NATIVE_LDFLAGS := -lSDL3 -lSDL3_ttf
 NATIVE_TARGET := $(BUILD_DIR)/app
 
-all: $(WEB_TARGET)
+.PHONY: all submodules clean serve web native run
+all: web native
+web: submodules $(WEB_TARGET)
+native: submodules $(NATIVE_TARGET)
+
+submodules:
+	git submodule update --init --recursive
 
 $(WEB_TARGET): $(SRCS) $(EMSHELL)
 	@mkdir -p $(BUILD_DIR)
 	$(EMCC) $(EM_CFLAGS) $(SRCS) $(EMFLAGS) -o $(WEB_TARGET)
 
-native: $(NATIVE_TARGET)
 $(NATIVE_TARGET): $(SRCS)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(SRCS) $(NATIVE_CFLAGS) $(NATIVE_LDFLAGS) -o $@
@@ -57,5 +69,3 @@ serve: all
 
 clean:
 	rm -rf $(BUILD_DIR)
-
-.PHONY: all clean serve native run

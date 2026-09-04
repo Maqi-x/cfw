@@ -1,6 +1,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <config.h>
+#include <md4c.h>
+
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -12,38 +15,8 @@
     #define WEB false
 #endif
 
-#define _STRINGIFY(x) #x
-#define STRINGIFY(x) _STRINGIFY(x)
-
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
-
-char description[] =
-    "# Webdev that's actually fun.\n"
-    "\n"
-    "This website is written entirely in C. How is this possible?\n"
-    "It's simple! Back in the day, browsers only ran **JavaScript**, a language that nobody likes *(depending on who you ask, but the truth is that it's poorly designed)*.\n"
-    "But now, we have a cool thing called **WebAssembly**. It's a low-level language somewhat similar to LLVM IR, "
-    "which your browser compiles to machine code under the hood and executes in a sandbox. We can compile C to WebAssembly using "
-    "**the Emscripten project**, a complete toolchain targeting Wasm, which also provides ports of many essential libraries. "
-    "This allows us to use SDL3 on the World Wide Web!\n"
-    "Of course, we can't just draw directly to the browser window, so we use the HTML `<canvas>` element instead. "
-    "It allows us to draw arbitrary pixels on the page natively, and the Emscripten SDL3 port works with this approach perfectly.\n"
-    "\n"
-    "## Is it practical? The limitations\n"
-    "**No.** (This section will be expanded in the future, there are many limitations and other issues.)\n"
-    "\n"
-    "*This page is in early development.*\n"
-    "## TODOs:\n"
-    " - Markdown\n"
-    " - Scrolling\n"
-    " - Clickable links\n"
-    " - Selecting text and right-click menu\n"
-    " - Other stuff.\n"
-;
-
-#define MAINTEXT_X 40
-#define MAINTEXT_Y 100
 
 // TODO: maybe globals are not a good idea, but i guess it's fine for now
 int w, h;
@@ -55,21 +28,79 @@ TTF_TextEngine* tengine;
 
 struct {
     TTF_Font
-        *header,
-        *maintext;
+        *normal,
+        *bold,
+        *italic,
+        *h1,
+        *h2;
 } f;
 
-struct {
-    TTF_Text
-        *c_for_web,
-        *description;
-} t;
+FT* title;
+FT* body;
+
+typedef struct {
+    TTF_Font** out;
+    bool italic;
+
+    uint size;
+    TTF_FontStyleFlags style;
+} FontSpec;
+
+static const char* getpath(const FontSpec* spec) {
+    return spec->italic ? "assets/nunito/NunitoSans-Italic.ttf" : "assets/nunito/NunitoSans.ttf";
+}
+
+static bool loadfont(TTF_Font** out, const FontSpec* spec) {
+    *out = TTF_OpenFont(getpath(spec), spec->size);
+    if (*out == NULL) {
+        return false;
+    }
+
+    if (spec->style != 0) {
+        TTF_SetFontStyle(*out, spec->style);
+    }
+    return true;
+}
+
+static void closefont(TTF_Font** font) {
+    if (*font != NULL) {
+        TTF_CloseFont(*font);
+        *font = NULL;
+    }
+}
+
+static void unload_fonts() {
+    closefont(&f.h2);
+    closefont(&f.h1);
+    closefont(&f.italic);
+    closefont(&f.bold);
+    closefont(&f.normal);
+}
+
+static bool load_fonts() {
+    const FontSpec fonts[] = {
+        { .out = &f.normal, .italic = false, .size = 23, .style = 0              },
+        { .out = &f.bold,   .italic = false, .size = 23, .style = TTF_STYLE_BOLD },
+        { .out = &f.italic, .italic = true,  .size = 23, .style = 0              },
+        { .out = &f.h1,     .italic = false, .size = 34, .style = TTF_STYLE_BOLD },
+        { .out = &f.h2,     .italic = false, .size = 28, .style = TTF_STYLE_BOLD },
+    };
+
+    for (usize i = 0; i < sizeof(fonts) / sizeof(FontSpec); ++i) {
+        if (!loadfont(fonts[i].out, &fonts[i])) {
+            unload_fonts();
+            return false;
+        }
+    }
+
+    return true;
+}
 
 bool running = true;
 
 static void update_layout() {
     SDL_GetWindowSize(window, &w, &h);
-    TTF_SetTextWrapWidth(t.description, w - MAINTEXT_X * 2);
+    ft_set_width(body, w - MAINTEXT_X * 2);
 }
 
 static void mainloop() {
@@ -86,11 +117,11 @@ static void mainloop() {
     SDL_SetRenderDrawColor(renderer, 7, 7, 7, 255);
     SDL_RenderClear(renderer);
 
-    int cfw_header_w, cfw_header_h;
-    TTF_GetTextSize(t.c_for_web, &cfw_header_w, &cfw_header_h);
+    uint title_w;
+    ft_get_size(title, &title_w, NULL);
 
-    TTF_DrawRendererText(t.c_for_web, ((float)w / 2) - ((float)cfw_header_w / 2), 10);
-    TTF_DrawRendererText(t.description, MAINTEXT_X, MAINTEXT_Y);
+    ft_draw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
+    ft_draw(body, MAINTEXT_X, MAINTEXT_Y);
 
     SDL_RenderPresent(renderer);
 
@@ -128,31 +159,39 @@ bool init() {
     if (renderer == NULL)
         { E(SDL_CreateRenderer); goto e3; }
 
-    f.header = TTF_OpenFont("assets/nunito/NunitoSans.ttf", 34);
-    if (f.header == NULL) { E(TTF_OpenFont); goto e4; }
-    TTF_SetFontStyle(f.header, TTF_STYLE_BOLD|TTF_STYLE_UNDERLINE);
-
-    f.maintext = TTF_OpenFont("assets/nunito/NunitoSans.ttf", 24);
-    if (f.maintext == NULL) { E(TTF_OpenFont); goto e5; }
+    if (!load_fonts())
+        { E(TTF_OpenFont); goto e4; }
 
     tengine = TTF_CreateRendererTextEngine(renderer);
     if (tengine == NULL)
-        { E(TTF_CreateRendererTextEngine); goto e6; }
+        { E(TTF_CreateRendererTextEngine); goto e5; }
 
-    t.c_for_web = TTF_CreateText(tengine, f.header, "C For Web", 0);
-    if (t.c_for_web == NULL) { E(TTF_CreateText); goto e7; }
+    Style style = {
+        .normal = f.normal, .bold = f.bold, .italic = f.italic,
+        .h1 = f.h1, .h2 = f.h2,
+        .text_color = text_color,
+    };
 
-    t.description = TTF_CreateText(tengine, f.maintext, description, 0);
-    if (t.description == NULL) { E(TTF_CreateText); goto e8; }
+    title = ft_create(tengine, &style);
+    if (title == NULL) { E(ft_create); goto e6; }
+
+    body = ft_create(tengine, &style);
+    if (body == NULL) { E(ft_create); goto e7; }
+
+    if (!ft_set_fragments(title, t_title, sizeof(t_title) / sizeof(t_title[0])))
+        { E(ft_set_fragments); goto e8; }
+
+    if (!ft_set_fragments(body, t_description, sizeof(t_description) / sizeof(t_description[0])))
+        { E(ft_set_fragments); goto e8; }
 
     update_layout();
 
     return true;
 
-e8: TTF_DestroyText(t.c_for_web);
-e7: TTF_DestroyRendererTextEngine(tengine);
-e6: TTF_CloseFont(f.maintext);
-e5: TTF_CloseFont(f.header);
+e8: ft_destroy(body);
+e7: ft_destroy(title);
+e6: TTF_DestroyRendererTextEngine(tengine);
+e5: unload_fonts();
 e4: SDL_DestroyRenderer(renderer);
 e3: SDL_DestroyWindow(window);
 e2: TTF_Quit();
