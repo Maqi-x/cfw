@@ -18,8 +18,29 @@
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
 
-#define DESCRIPTION \
-    "Webdev that is actually fun."
+char description[] =
+    "# Webdev that's actually fun.\n"
+    "\n"
+    "This website is written entirely in C. How is this possible?\n"
+    "It's simple! Back in the day, browsers only ran **JavaScript**, a language that nobody likes *(depending on who you ask, but the truth is that it's poorly designed)*.\n"
+    "But now, we have a cool thing called **WebAssembly**. It's a low-level language somewhat similar to LLVM IR, "
+    "which your browser compiles to machine code under the hood and executes in a sandbox. We can compile C to WebAssembly using "
+    "**the Emscripten project**, a complete toolchain targeting Wasm, which also provides ports of many essential libraries. "
+    "This allows us to use SDL3 on the World Wide Web!\n"
+    "Of course, we can't just draw directly to the browser window, so we use the HTML `<canvas>` element instead. "
+    "It allows us to draw arbitrary pixels on the page natively, and the Emscripten SDL3 port works with this approach perfectly.\n"
+    "\n"
+    "## Is it practical? The limitations\n"
+    "**No.** (This section will be expanded in the future, there are many limitations and other issues.)\n"
+    "\n"
+    "*This page is in early development.*\n"
+    "## TODOs:\n"
+    " - Markdown\n"
+    " - Scrolling\n"
+    " - Clickable links\n"
+    " - Selecting text and right-click menu\n"
+    " - Other stuff.\n"
+;
 
 #define MAINTEXT_X 40
 #define MAINTEXT_Y 100
@@ -61,6 +82,7 @@ static void mainloop() {
         }
     }
 
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 7, 7, 7, 255);
     SDL_RenderClear(renderer);
 
@@ -94,10 +116,11 @@ bool init() {
 #if WEB
     emscripten_get_canvas_element_size("#canvas", &w, &h);
 #else
-    w = 800, h = 600;
+    w = 1024, h = 720;
 #endif
 
-    window = SDL_CreateWindow("C for Web", w, h, SDL_WINDOW_RESIZABLE);
+    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    window = SDL_CreateWindow("C for Web", w, h, flags);
     if (window == NULL)
         { E(SDL_CreateWindow); goto e2; }
 
@@ -119,7 +142,7 @@ bool init() {
     t.c_for_web = TTF_CreateText(tengine, f.header, "C For Web", 0);
     if (t.c_for_web == NULL) { E(TTF_CreateText); goto e7; }
 
-    t.description = TTF_CreateText(tengine, f.maintext, DESCRIPTION, 0);
+    t.description = TTF_CreateText(tengine, f.maintext, description, 0);
     if (t.description == NULL) { E(TTF_CreateText); goto e8; }
 
     update_layout();
