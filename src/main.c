@@ -39,6 +39,19 @@ struct {
 TTF_TextEngine* tengine;
 FT *title, *body;
 
+SDL_Texture* github_icon = NULL;
+bool github_hovered = false;
+
+// It's ugly, but I have no idea how to do this without macros
+// If I define this as a function
+//   static SDL_FRect github_rect() { return ...; }
+// Then I can't just do this:
+//   &github_rect();
+// It only works with compound literals, I guess that's just
+// ow this 54 year old language works, and the preprocessor
+// also exists for a reason. Let's use it then!
+#define GITHUB_RECT ((SDL_FRect){ (float)w - 50, 10, 40, 40 })
+
 bool running = true;
 
 static void clamp(float* value, float max) {
@@ -72,13 +85,17 @@ static void DrawTopbar() {
     uint title_w;
     FTGetSize(title, &title_w, NULL);
 
-    FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
-
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
     SDL_FRect topbar = { 0, 0, (float)w, (float)MAINTEXT_Y };
     SDL_RenderFillRect(renderer, &topbar);
 
     FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
+
+    SDL_SetTextureColorMod(github_icon,
+        github_hovered ? 170 : 255,
+        github_hovered ? 170 : 255,
+        github_hovered ? 170 : 255);
+    SDL_RenderTexture(renderer, github_icon, NULL, &GITHUB_RECT);
 }
 
 static void DrawBodytext() {
@@ -115,16 +132,22 @@ static void CheckAndKickCompositor(float dt) {
 }
 #endif
 
-static void HandleMouseEvents(SDL_Event* event, float mx, float my) {
-    float x = mx - MAINTEXT_X;
-    float y = my - CONTENT_Y + scroll.curr;
+static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
+    bool on_github = SDL_PointInRectFloat(&mouse, &GITHUB_RECT);
+    github_hovered = on_github;
+
+    float x = mouse.x - MAINTEXT_X;
+    float y = mouse.y - CONTENT_Y + scroll.curr;
 
     const char* url = FTGetLinkAt(body, x, y);
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        if (on_github)
+            return (void)SDL_OpenURL(GITHUB_LINK);
+
         if (url == NULL) return;
         (void)SDL_OpenURL(url);
     } else {
-        SDL_SetCursor(url != NULL ? cursor.pointer : cursor.arrow);
+        SDL_SetCursor(on_github || url != NULL ? cursor.pointer : cursor.arrow);
     }
 }
 
@@ -148,9 +171,9 @@ static void MainLoop() {
             scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
             EnsureScrollInBounds();
         } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-            HandleMouseEvents(&event, event.button.x, event.button.y);
+            HandleMouseEvents(&event, (SDL_FPoint) { event.button.x, event.button.y });
         } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
-            HandleMouseEvents(&event, event.motion.x, event.motion.y);
+            HandleMouseEvents(&event, (SDL_FPoint) { event.motion.x, event.motion.y });
         }
     }
 
@@ -176,6 +199,24 @@ static void MainLoop() {
         exit(0);
     #endif
     }
+}
+
+static SDL_Texture* LoadTexture(const char* file) {
+    SDL_Surface* surf = SDL_LoadPNG(file);
+    if (surf == NULL) {
+        SDL_Log("Failed to load %s: %s", file, SDL_GetError());
+        return NULL;
+    }
+
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surf);
+    SDL_DestroySurface(surf);
+
+    if (tex == NULL) {
+        SDL_Log("Failed to create texture from %s: %s", file, SDL_GetError());
+        return NULL;
+    }
+
+    return tex;
 }
 
 bool init() {
@@ -234,9 +275,14 @@ bool init() {
     if (cursor.pointer == NULL)
         { E(SDL_CreateSystemCursor); goto e9; }
 
+    github_icon = LoadTexture("assets/github.png");
+    if (github_icon == NULL)
+        { E(SDL_LoadPNG); goto eA; }
+
     UpdateLayout();
     return true;
 
+eA: SDL_DestroyCursor(cursor.pointer);
 e9: SDL_DestroyCursor(cursor.arrow);
 e8: DestroyFT(body);
 e7: DestroyFT(title);

@@ -53,3 +53,5 @@ static const SDL_Color
 #define SCROLL_WHEEL_STEP 45.0f
 
 #define CONTENT_Y (MAINTEXT_Y + TOPBAR_PADDING)
+
+#define GITHUB_LINK "https://github.com/Maqi-x/cfw.git"
