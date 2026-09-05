@@ -3,6 +3,8 @@
 
 #include <config.h>
 #include <fonts.h>
+#include <windows.h>
+#include <apps.h>
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -39,16 +41,19 @@ struct {
 TTF_TextEngine* tengine;
 FT *title, *body;
 
-SDL_Texture* github_icon = NULL;
-bool github_hovered = false;
+SDL_Texture* githubIcon = NULL;
+bool githubHovered = false;
+
+TTF_Text* demosText = NULL;
+bool demosHovered = false;
 
 // It's ugly, but I have no idea how to do this without macros
 // If I define this as a function
-//   static SDL_FRect github_rect() { return ...; }
+//   static SDL_FRect githubRect() { return ...; }
 // Then I can't just do this:
-//   &github_rect();
+//   &githubRect();
 // It only works with compound literals, I guess that's just
-// ow this 54 year old language works, and the preprocessor
+// how this 54 year old language works, and the preprocessor
 // also exists for a reason. Let's use it then!
 #define GITHUB_RECT ((SDL_FRect){ (float)w - 50, 10, 40, 40 })
 
@@ -81,6 +86,42 @@ static void UpdateScroll(float dt) {
     scroll.curr += (scroll.target - scroll.curr) * factor;
 }
 
+static SDL_FRect GetGamesDemosButtonRect() {
+    int tw = 0, th = 0;
+    TTF_GetTextSize(demosText, &tw, &th);
+
+    float bw = tw + 28.0f;
+    float bh = th + 12.0f;
+
+    return (SDL_FRect) {
+        .w = bw, .h = bh,
+        .x = w - MAINTEXT_X - bw,
+        .y = CONTENT_Y - scroll.curr,
+    };
+}
+
+static void DrawGamesDemosButton() {
+    if (demosText == NULL) return;
+    SDL_FRect btn = GetGamesDemosButtonRect();
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, demosHovered ? 25 : 0);
+    SDL_RenderFillRect(renderer, &btn);
+
+    if (demosHovered) {
+        SDL_SetRenderDrawColor(renderer, 186, 195, 207, 255);
+    } else {
+        SDL_SetRenderDrawColor(renderer, 225, 230, 237, 255);
+    }
+    SDL_RenderRect(renderer, &btn);
+
+    int tw = 0, th = 0;
+    TTF_GetTextSize(demosText, &tw, &th);
+
+    float tx = btn.x + (btn.w - tw) / 2.0f;
+    float ty = btn.y + (btn.h - th) / 2.0f;
+    TTF_DrawRendererText(demosText, tx, ty);
+}
+
 static void DrawTopbar() {
     uint title_w;
     FTGetSize(title, &title_w, NULL);
@@ -91,11 +132,11 @@ static void DrawTopbar() {
 
     FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
 
-    SDL_SetTextureColorMod(github_icon,
-        github_hovered ? 170 : 255,
-        github_hovered ? 170 : 255,
-        github_hovered ? 170 : 255);
-    SDL_RenderTexture(renderer, github_icon, NULL, &GITHUB_RECT);
+    SDL_SetTextureColorMod(githubIcon,
+        githubHovered ? 170 : 255,
+        githubHovered ? 170 : 255,
+        githubHovered ? 170 : 255);
+    SDL_RenderTexture(renderer, githubIcon, NULL, &GITHUB_RECT);
 }
 
 static void DrawBodytext() {
@@ -103,6 +144,8 @@ static void DrawBodytext() {
     SDL_SetRenderClipRect(renderer, &clip);
 
     FTDraw(body, MAINTEXT_X, CONTENT_Y - scroll.curr);
+    DrawGamesDemosButton();
+
     SDL_SetRenderClipRect(renderer, NULL);
 }
 
@@ -133,21 +176,35 @@ static void CheckAndKickCompositor(float dt) {
 #endif
 
 static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
-    bool on_github = SDL_PointInRectFloat(&mouse, &GITHUB_RECT);
-    github_hovered = on_github;
+    bool onGithubBtn = SDL_PointInRectFloat(&mouse, &GITHUB_RECT) && mouse.y <= (float)MAINTEXT_Y;
+    githubHovered = onGithubBtn;
+
+    SDL_FRect btn = GetGamesDemosButtonRect();
+    bool onDemosBtn = SDL_PointInRectFloat(&mouse, &btn) && mouse.y > (float)MAINTEXT_Y && !IsMouseOverWindow(mouse);
+    demosHovered = onDemosBtn;
 
     float x = mouse.x - MAINTEXT_X;
     float y = mouse.y - CONTENT_Y + scroll.curr;
 
-    const char* url = FTGetLinkAt(body, x, y);
+    const char* url = (!IsMouseOverWindow(mouse) && mouse.y > (float)MAINTEXT_Y) ? FTGetLinkAt(body, x, y) : NULL;
+
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-        if (on_github)
+        if (onGithubBtn)
             return (void)SDL_OpenURL(GITHUB_LINK);
+
+        if (onDemosBtn) {
+            WindowCreate(APP_DISCOVER);
+            return;
+        }
 
         if (url == NULL) return;
         (void)SDL_OpenURL(url);
     } else {
-        SDL_SetCursor(on_github || url != NULL ? cursor.pointer : cursor.arrow);
+        if (WindowWantsPointerCursor(mouse) || onGithubBtn || onDemosBtn || url != NULL) {
+            SDL_SetCursor(cursor.pointer);
+        } else {
+            SDL_SetCursor(cursor.arrow);
+        }
     }
 }
 
@@ -167,13 +224,33 @@ static void MainLoop() {
             running = false;
         } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
             UpdateLayout();
-        } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
-            scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
-            EnsureScrollInBounds();
-        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-            HandleMouseEvents(&event, (SDL_FPoint) { event.button.x, event.button.y });
-        } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
-            HandleMouseEvents(&event, (SDL_FPoint) { event.motion.x, event.motion.y });
+        } else {
+            SDL_FPoint mouse;
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+                mouse = (SDL_FPoint) { event.button.x, event.button.y };
+            } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                mouse = (SDL_FPoint) { event.motion.x, event.motion.y };
+            } else {
+                float mx, my;
+                SDL_GetMouseState(&mx, &my);
+                mouse = (SDL_FPoint) { mx, my };
+            }
+
+            if (HandleWindowEvent(&event, mouse)) {
+                if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                    HandleMouseEvents(&event, mouse);
+                }
+                continue;
+            }
+
+            if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
+                EnsureScrollInBounds();
+            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                HandleMouseEvents(&event, mouse);
+            } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                HandleMouseEvents(&event, mouse);
+            }
         }
     }
 
@@ -183,12 +260,17 @@ static void MainLoop() {
     SDL_SetRenderDrawColor(renderer, 7, 7, 7, 255);
     SDL_RenderClear(renderer);
 
-    DrawTopbar();
     DrawBodytext();
+    DrawTopbar();
+    RenderWindows(renderer);
 
     SDL_RenderPresent(renderer);
 
     if (!running) {
+        if (demosText != NULL) {
+            TTF_DestroyText(demosText);
+        }
+        DeinitWindows();
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -228,7 +310,8 @@ bool init() {
 #if WEB
     emscripten_get_canvas_element_size("#canvas", &w, &h);
 #else
-    w = 1024, h = 720;
+    // does anyone even use 900p in big 2026?
+    w = 1600, h = 900;
 #endif
 
     lastTicks = SDL_GetTicksNS();
@@ -246,8 +329,13 @@ bool init() {
         { E(TTF_OpenFont); goto e4; }
 
     tengine = TTF_CreateRendererTextEngine(renderer);
-    if (tengine == NULL)
-        { E(TTF_CreateRendererTextEngine); goto e5; }
+    if (tengine == NULL) E(TTF_CreateRendererTextEngine);
+
+    InitWindows();
+
+    demosText = TTF_CreateText(tengine, f.bold, "Games and demos", 15);
+    if (demosText == NULL) E(TTF_CreateText);
+    TTF_SetTextColor(demosText, 240, 240, 240, 255);
 
     Style style = {
         .normal = f.normal, .bold = f.bold, .italic = f.italic,
@@ -256,38 +344,31 @@ bool init() {
     };
 
     title = CreateFT(tengine, &style);
-    if (title == NULL) { E(CreateFT); goto e6; }
+    if (title == NULL) E(CreateFT);
 
     body = CreateFT(tengine, &style);
-    if (body == NULL) { E(CreateFT); goto e7; }
+    if (body == NULL) E(CreateFT);
 
     if (!FTSetFragments(title, tTitle, sizeof(tTitle) / sizeof(tTitle[0])))
-        { E(FTSetFragments); goto e8; }
+        E(FTSetFragments);
 
     if (!FTSetFragments(body, tDescription, sizeof(tDescription) / sizeof(tDescription[0])))
-        { E(FTSetFragments); goto e8; }
+        E(FTSetFragments);
 
     cursor.arrow = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
-    if (cursor.arrow == NULL)
-        { E(SDL_CreateSystemCursor); goto e8; }
+    if (cursor.arrow == NULL) E(SDL_CreateSystemCursor);
 
     cursor.pointer = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
-    if (cursor.pointer == NULL)
-        { E(SDL_CreateSystemCursor); goto e9; }
+    if (cursor.pointer == NULL) E(SDL_CreateSystemCursor);
 
-    github_icon = LoadTexture("assets/github.png");
-    if (github_icon == NULL)
-        { E(SDL_LoadPNG); goto eA; }
+    githubIcon = LoadTexture("assets/github.png");
+    if (githubIcon == NULL) E(SDL_LoadPNG);
 
     UpdateLayout();
     return true;
 
-eA: SDL_DestroyCursor(cursor.pointer);
-e9: SDL_DestroyCursor(cursor.arrow);
-e8: DestroyFT(body);
-e7: DestroyFT(title);
-e6: TTF_DestroyRendererTextEngine(tengine);
-e5: UnloadFonts();
+// other things are not important enough for me to care
+// about freeing their resources
 e4: SDL_DestroyRenderer(renderer);
 e3: SDL_DestroyWindow(window);
 e2: TTF_Quit();

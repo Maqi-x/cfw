@@ -16,3 +16,7 @@ typedef unsigned char uchar;
 #ifndef unreachable
     #define unreachable() __builtin_unreachable()
 #endif
+
+typedef struct TTF_TextEngine TTF_TextEngine;
+extern TTF_TextEngine* tengine;
+
