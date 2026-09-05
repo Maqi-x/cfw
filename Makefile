@@ -22,8 +22,7 @@ INCLUDE_PATHS := \
 	-Ideps/vector
 
 WEB_CFLAGS := -O2 -Wall \
-		 $(INCLUDE_PATHS) \
-         $(shell empack-config --cflags sdl3 sdl3-image 2>/dev/null)
+		 $(INCLUDE_PATHS)
 
 WEB_EMFLAGS := \
 		-sUSE_SDL=3 \
