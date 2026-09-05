@@ -26,17 +26,24 @@ static const TextFragment tDescription[] = {
 
     T_H2("Is it practical? The limitations\n"),
     T_BOLD("No."), T_ITALIC(" (This section will be expanded in the future, there are many limitations and other issues.)\n"),
+    T("\n\n\n\n"),
+
+    T_H2("Sources\n"),
+    T_BOLD("SDL3 For Emscripten: "), T("wiki.libsdl.org/SDL3/README-emscripten\n", .href = "https://wiki.libsdl.org/SDL3/README-emscripten"),
+    T_BOLD("Emscripten Documentation: "), T("emscripten.org/docs\n", .href = "https://emscripten.org/docs/index.html"),
+    T_BOLD("WebAssembly Official Site: "), T("webassembly.org\n", .href = "https://webassembly.org"),
+    T_BOLD("WebAssembly Documentation: "), T("developer.mozilla.org/en-US/docs/WebAssembly\n", .href = "https://developer.mozilla.org/en-US/docs/WebAssembly"),
     T("\n\n\n\n\n\n"),
 
     T_ITALIC("This page is in early development.\n"),
     T_H2("TODOs:\n"),
-    T(" - Clickable links\n"),
     T(" - Selecting text and right-click menu\n"),
     T(" - Other stuff.\n"),
 };
 
 static const SDL_Color
-    text_color = { 255, 255, 255, 255 };
+    text_color = { 255, 255, 255, 255 },
+    link_color = { 53,  163, 219, 255 };
 
 #define MAINTEXT_X 40
 #define MAINTEXT_Y 60
@@ -45,3 +52,4 @@ static const SDL_Color
 #define SCROLL_SPEED 20.0f
 #define SCROLL_WHEEL_STEP 45.0f
 
+#define CONTENT_Y (MAINTEXT_Y + TOPBAR_PADDING)

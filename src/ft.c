@@ -24,6 +24,7 @@ typedef struct {
     TTF_Text* text;
     float x, y;
     uint w, h;
+    const char* href;
 } Part;
 
 VECTOR_DECLARE(Parts, parts, Part);
@@ -77,18 +78,15 @@ static bool is_header(TextKind kind) {
     return kind == TEXT_H1 || kind == TEXT_H2;
 }
 
-static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, float x, float y) {
+static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, float x, float y, const char* href) {
     if (len == 0)
         return true;
 
     TTF_Text* tt = TTF_CreateText(ft->engine, font, text, len);
     if (tt == NULL) return false;
 
-    TTF_SetTextColor(tt,
-        ft->style.text_color.r,
-        ft->style.text_color.g,
-        ft->style.text_color.b,
-        ft->style.text_color.a);
+    SDL_Color color = (href != NULL) ? ft->style.link_color : ft->style.text_color;
+    TTF_SetTextColor(tt, color.r, color.g, color.b, color.a);
 
     int w, h;
     if (!TTF_GetTextSize(tt, &w, &h)) {
@@ -100,6 +98,7 @@ static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, floa
         .text = tt,
         .x = x, .y = y,
         .w = w, .h = h,
+        .href = href
     });
 
     ft->cw = max(x + w, ft->cw);
@@ -119,7 +118,7 @@ static bool FinishLine(FT* ft, float* x, float* y, uint* lineheight, bool paragr
 
 static bool AppendToken(
     FT* ft, TTF_Font* font, const char* text, usize len,
-    float* x, float* y, uint* lineheight
+    float* x, float* y, uint* lineheight, const char* href
 ) {
     int w, h;
     if (!TTF_GetStringSize(font, text, len, &w, &h))
@@ -129,7 +128,7 @@ static bool AppendToken(
         if (*x > 0.0f && (*x + w) > ft->style.width)
             FinishLine(ft, x, y, lineheight, false);
 
-    if (!AppendPart(ft, font, text, len, *x, *y))
+    if (!AppendPart(ft, font, text, len, *x, *y, href))
         return false;
 
     *x += w;
@@ -163,7 +162,7 @@ static bool UpdateLayoutFragment(
         if (isspace(*p)) {
             while (*p != '\0' && *p != '\n' && isspace(*p)) p++;
             if (*x > 0.0f) {
-                if (!AppendToken(ft, font, " ", 1, x, y, lineheight)) {
+                if (!AppendToken(ft, font, " ", 1, x, y, lineheight, frag->href)) {
                     return false;
                 }
             }
@@ -174,7 +173,7 @@ static bool UpdateLayoutFragment(
         while (*p != '\0' && !isspace(*p))
             p++;
 
-        if (!AppendToken(ft, font, beg, (usize)(p - beg), x, y, lineheight)) {
+        if (!AppendToken(ft, font, beg, (usize)(p - beg), x, y, lineheight, frag->href)) {
             return false;
         }
     }
@@ -250,6 +249,16 @@ void FTDraw(FT* ft, float x, float y) {
 void FTGetSize(const FT* ft, uint* w, uint* h) {
     if (w != NULL) *w = ft->cw;
     if (h != NULL) *h = ft->ch;
+}
+
+const char* FTGetLinkAt(const FT* ft, float x, float y) {
+    for (Part* part = ft->parts.begin; part < ft->parts.end; ++part) {
+        if (x >= part->x && x <= (part->x + part->w) &&
+            y >= part->y && y <= (part->y + part->h)) {
+            return part->href;
+        }
+    }
+    return NULL;
 }
 
 void FTClear(FT* ft) {

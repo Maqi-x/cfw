@@ -31,6 +31,11 @@ struct {
 SDL_Window*   window;
 SDL_Renderer* renderer;
 
+struct {
+    SDL_Cursor *arrow,
+               *pointer;
+} cursor;
+
 TTF_TextEngine* tengine;
 FT *title, *body;
 
@@ -45,8 +50,7 @@ static void EnsureScrollInBounds() {
     uint bw, bh;
     FTGetSize(body, &bw, &bh);
 
-    int contentY = MAINTEXT_Y + TOPBAR_PADDING;
-    float maxScroll = (float)bh - (h - contentY);
+    float maxScroll = (float)bh - (h - CONTENT_Y);
     if (maxScroll < 0) maxScroll = 0;
 
     clamp(&scroll.target, maxScroll);
@@ -78,12 +82,10 @@ static void DrawTopbar() {
 }
 
 static void DrawBodytext() {
-    int contentY = MAINTEXT_Y + TOPBAR_PADDING;
-
     SDL_Rect clip = { 0, MAINTEXT_Y, w, h - MAINTEXT_Y };
     SDL_SetRenderClipRect(renderer, &clip);
 
-    FTDraw(body, MAINTEXT_X, contentY - scroll.curr);
+    FTDraw(body, MAINTEXT_X, CONTENT_Y - scroll.curr);
     SDL_SetRenderClipRect(renderer, NULL);
 }
 
@@ -113,6 +115,19 @@ static void CheckAndKickCompositor(float dt) {
 }
 #endif
 
+static void HandleMouseEvents(SDL_Event* event, float mx, float my) {
+    float x = mx - MAINTEXT_X;
+    float y = my - CONTENT_Y + scroll.curr;
+
+    const char* url = FTGetLinkAt(body, x, y);
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        if (url == NULL) return;
+        (void)SDL_OpenURL(url);
+    } else {
+        SDL_SetCursor(url != NULL ? cursor.pointer : cursor.arrow);
+    }
+}
+
 static void MainLoop() {
     uint64_t now = SDL_GetTicksNS();
     float dt = (float)((now - lastTicks) / 1000000000.0);
@@ -132,6 +147,10 @@ static void MainLoop() {
         } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
             scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
             EnsureScrollInBounds();
+        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+            HandleMouseEvents(&event, event.button.x, event.button.y);
+        } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+            HandleMouseEvents(&event, event.motion.x, event.motion.y);
         }
     }
 
@@ -191,8 +210,8 @@ bool init() {
 
     Style style = {
         .normal = f.normal, .bold = f.bold, .italic = f.italic,
+        .text_color = text_color, .link_color = link_color,
         .h1 = f.h1, .h2 = f.h2,
-        .text_color = text_color,
     };
 
     title = CreateFT(tengine, &style);
@@ -207,9 +226,18 @@ bool init() {
     if (!FTSetFragments(body, tDescription, sizeof(tDescription) / sizeof(tDescription[0])))
         { E(FTSetFragments); goto e8; }
 
+    cursor.arrow = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_DEFAULT);
+    if (cursor.arrow == NULL)
+        { E(SDL_CreateSystemCursor); goto e8; }
+
+    cursor.pointer = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
+    if (cursor.pointer == NULL)
+        { E(SDL_CreateSystemCursor); goto e9; }
+
     UpdateLayout();
     return true;
 
+e9: SDL_DestroyCursor(cursor.arrow);
 e8: DestroyFT(body);
 e7: DestroyFT(title);
 e6: TTF_DestroyRendererTextEngine(tengine);
