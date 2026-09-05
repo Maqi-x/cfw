@@ -2,11 +2,11 @@
 
 #include <ft.h>
 
-static const TextFragment t_title[] = {
+static const TextFragment tTitle[] = {
     T_H1("C For Web"),
 };
 
-static const TextFragment t_description[] = {
+static const TextFragment tDescription[] = {
     T_H1("Webdev that's actually fun.\n"),
     T("\n\n\n\n"),
 
@@ -30,7 +30,6 @@ static const TextFragment t_description[] = {
 
     T_ITALIC("This page is in early development.\n"),
     T_H2("TODOs:\n"),
-    T(" - Scrolling\n"),
     T(" - Clickable links\n"),
     T(" - Selecting text and right-click menu\n"),
     T(" - Other stuff.\n"),
@@ -40,4 +39,9 @@ static const SDL_Color
     text_color = { 255, 255, 255, 255 };
 
 #define MAINTEXT_X 40
-#define MAINTEXT_Y 100
+#define MAINTEXT_Y 60
+#define TOPBAR_PADDING 20
+
+#define SCROLL_SPEED 20.0f
+#define SCROLL_WHEEL_STEP 45.0f
+

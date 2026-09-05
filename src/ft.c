@@ -42,12 +42,12 @@ struct FT {
     uint ch;
 };
 
-void ensure_part_cap(FT* ft, usize need) {
+void EnsurePartsCount(FT* ft, usize need) {
     usize curr = vlen(&ft->parts);
     if (need > curr) parts_resize(&ft->parts, need);
 }
 
-static void free_parts(FT* ft) {
+static void FreeParts(FT* ft) {
     for (Part* part = ft->parts.begin; part < ft->parts.end; ++part) {
         TTF_DestroyText(part->text);
     }
@@ -77,7 +77,7 @@ static bool is_header(TextKind kind) {
     return kind == TEXT_H1 || kind == TEXT_H2;
 }
 
-static bool append_part(FT* ft, TTF_Font* font, const char* text, usize len, float x, float y) {
+static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, float x, float y) {
     if (len == 0)
         return true;
 
@@ -107,7 +107,7 @@ static bool append_part(FT* ft, TTF_Font* font, const char* text, usize len, flo
     return true;
 }
 
-static bool finish_line(FT* ft, float* x, float* y, uint* lineheight, bool paragraph_break) {
+static bool FinishLine(FT* ft, float* x, float* y, uint* lineheight, bool paragraph_break) {
     uint gap = paragraph_break ? ft->style.paragraph_gap : ft->style.line_gap;
 
     *x = 0;
@@ -117,7 +117,7 @@ static bool finish_line(FT* ft, float* x, float* y, uint* lineheight, bool parag
     return true;
 }
 
-static bool append_token(
+static bool AppendToken(
     FT* ft, TTF_Font* font, const char* text, usize len,
     float* x, float* y, uint* lineheight
 ) {
@@ -127,9 +127,9 @@ static bool append_token(
 
     if (ft->style.width > 0)
         if (*x > 0.0f && (*x + w) > ft->style.width)
-            finish_line(ft, x, y, lineheight, false);
+            FinishLine(ft, x, y, lineheight, false);
 
-    if (!append_part(ft, font, text, len, *x, *y))
+    if (!AppendPart(ft, font, text, len, *x, *y))
         return false;
 
     *x += w;
@@ -138,7 +138,7 @@ static bool append_token(
     return true;
 }
 
-static bool update_layout_fragment(
+static bool UpdateLayoutFragment(
     FT* ft, const TextFragment* frag, float* x, float* y, uint* lineheight
 ) {
     TTF_Font* font = getfont(ft, frag->kind);
@@ -148,14 +148,14 @@ static bool update_layout_fragment(
     bool is_blocky = is_header(frag->kind);
     if (is_blocky) {
         if (*x > 0.0f || vlen(&ft->parts) > 0) {
-            finish_line(ft, x, y, lineheight, true);
+            FinishLine(ft, x, y, lineheight, true);
             *y += ft->style.heading_gap;
         }
     }
 
     while (*p != '\0') {
         if (*p == '\n') {
-            finish_line(ft, x, y, lineheight, true);
+            FinishLine(ft, x, y, lineheight, true);
             p++;
             continue;
         }
@@ -163,7 +163,7 @@ static bool update_layout_fragment(
         if (isspace(*p)) {
             while (*p != '\0' && *p != '\n' && isspace(*p)) p++;
             if (*x > 0.0f) {
-                if (!append_token(ft, font, " ", 1, x, y, lineheight)) {
+                if (!AppendToken(ft, font, " ", 1, x, y, lineheight)) {
                     return false;
                 }
             }
@@ -174,27 +174,27 @@ static bool update_layout_fragment(
         while (*p != '\0' && !isspace(*p))
             p++;
 
-        if (!append_token(ft, font, beg, (usize)(p - beg), x, y, lineheight)) {
+        if (!AppendToken(ft, font, beg, (usize)(p - beg), x, y, lineheight)) {
             return false;
         }
     }
 
     if (is_blocky) {
-        finish_line(ft, x, y, lineheight, true);
+        FinishLine(ft, x, y, lineheight, true);
     }
 
     return true;
 }
 
-bool update_layout(FT* ft) {
+bool UpdateLayout(FT* ft) {
     uint lineheight = 0;
     float x = 0, y = 0;
 
-    free_parts(ft);
+    FreeParts(ft);
 
     for (usize i = 0; i < ft->fragment_count; i++) {
-        if (!update_layout_fragment(ft, &ft->fragments[i], &x, &y, &lineheight)) {
-            free_parts(ft);
+        if (!UpdateLayoutFragment(ft, &ft->fragments[i], &x, &y, &lineheight)) {
+            FreeParts(ft);
             return false;
         }
     }
@@ -206,7 +206,7 @@ bool update_layout(FT* ft) {
     return true;
 }
 
-FT* ft_create(TTF_TextEngine* engine, const Style* style) {
+FT* CreateFT(TTF_TextEngine* engine, const Style* style) {
     FT* ft = calloc(1, sizeof(*ft));
     if (ft == NULL) return NULL;
 
@@ -222,38 +222,38 @@ FT* ft_create(TTF_TextEngine* engine, const Style* style) {
     return ft;
 }
 
-void ft_destroy(FT* ft) {
-    free_parts(ft);
+void DestroyFT(FT* ft) {
+    FreeParts(ft);
     free(ft);
 }
 
-bool ft_set_width(FT* ft, uint width) {
+bool FTSetWidth(FT* ft, uint width) {
     ft->style.width = width;
     if (ft->fragments == NULL)
         return true;
 
-    return update_layout(ft);
+    return UpdateLayout(ft);
 }
 
-bool ft_set_fragments(FT* ft, const TextFragment* fragments, usize count) {
+bool FTSetFragments(FT* ft, const TextFragment* fragments, usize count) {
     ft->fragments = fragments;
     ft->fragment_count = count;
-    return update_layout(ft);
+    return UpdateLayout(ft);
 }
 
-void ft_draw(FT* ft, float x, float y) {
+void FTDraw(FT* ft, float x, float y) {
     for (Part* part = ft->parts.begin; part < ft->parts.end; ++part) {
         TTF_DrawRendererText(part->text, x + part->x, y + part->y);
     }
 }
 
-void ft_get_size(const FT* ft, uint* w, uint* h) {
+void FTGetSize(const FT* ft, uint* w, uint* h) {
     if (w != NULL) *w = ft->cw;
     if (h != NULL) *h = ft->ch;
 }
 
-void ft_clear(FT* ft) {
+void FTClear(FT* ft) {
     ft->fragments = NULL;
     ft->fragment_count = 0;
-    free_parts(ft);
+    FreeParts(ft);
 }

@@ -49,12 +49,12 @@ typedef struct {
     uint heading_gap;
 } Style;
 
-FT* ft_create(TTF_TextEngine* engine, const Style* style);
-void ft_destroy(FT* ft);
+FT* CreateFT(TTF_TextEngine* engine, const Style* style);
+void DestroyFT(FT* ft);
 
-bool ft_set_width(FT* ft, uint width);
-bool ft_set_fragments(FT* ft, const TextFragment* fragments, usize count);
+bool FTSetWidth(FT* ft, uint width);
+bool FTSetFragments(FT* ft, const TextFragment* fragments, usize count);
 
-void ft_draw(FT* ft, float x, float y);
-void ft_get_size(const FT* ft, uint* w, uint* h);
-void ft_clear(FT* ft);
+void FTDraw(FT* ft, float x, float y);
+void FTGetSize(const FT* ft, uint* w, uint* h);
+void FTClear(FT* ft);

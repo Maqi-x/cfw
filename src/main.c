@@ -2,10 +2,11 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <config.h>
-#include <md4c.h>
+#include <fonts.h>
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <tgmath.h>
 
 #ifdef __EMSCRIPTEN__
     #define WEB true
@@ -20,108 +21,128 @@
 
 // TODO: maybe globals are not a good idea, but i guess it's fine for now
 int w, h;
+uint64_t lastTicks;
+
+struct {
+    float curr;
+    float target;
+} scroll;
 
 SDL_Window*   window;
 SDL_Renderer* renderer;
 
 TTF_TextEngine* tengine;
-
-struct {
-    TTF_Font
-        *normal,
-        *bold,
-        *italic,
-        *h1,
-        *h2;
-} f;
-
-FT* title;
-FT* body;
-
-typedef struct {
-    TTF_Font** out;
-    bool italic;
-
-    uint size;
-    TTF_FontStyleFlags style;
-} FontSpec;
-
-static const char* getpath(const FontSpec* spec) {
-    return spec->italic ? "assets/nunito/NunitoSans-Italic.ttf" : "assets/nunito/NunitoSans.ttf";
-}
-
-static bool loadfont(TTF_Font** out, const FontSpec* spec) {
-    *out = TTF_OpenFont(getpath(spec), spec->size);
-    if (*out == NULL) {
-        return false;
-    }
-
-    if (spec->style != 0) {
-        TTF_SetFontStyle(*out, spec->style);
-    }
-    return true;
-}
-
-static void closefont(TTF_Font** font) {
-    if (*font != NULL) {
-        TTF_CloseFont(*font);
-        *font = NULL;
-    }
-}
-
-static void unload_fonts() {
-    closefont(&f.h2);
-    closefont(&f.h1);
-    closefont(&f.italic);
-    closefont(&f.bold);
-    closefont(&f.normal);
-}
-
-static bool load_fonts() {
-    const FontSpec fonts[] = {
-        { .out = &f.normal, .italic = false, .size = 23, .style = 0              },
-        { .out = &f.bold,   .italic = false, .size = 23, .style = TTF_STYLE_BOLD },
-        { .out = &f.italic, .italic = true,  .size = 23, .style = 0              },
-        { .out = &f.h1,     .italic = false, .size = 34, .style = TTF_STYLE_BOLD },
-        { .out = &f.h2,     .italic = false, .size = 28, .style = TTF_STYLE_BOLD },
-    };
-
-    for (usize i = 0; i < sizeof(fonts) / sizeof(FontSpec); ++i) {
-        if (!loadfont(fonts[i].out, &fonts[i])) {
-            unload_fonts();
-            return false;
-        }
-    }
-
-    return true;
-}
+FT *title, *body;
 
 bool running = true;
 
-static void update_layout() {
-    SDL_GetWindowSize(window, &w, &h);
-    ft_set_width(body, w - MAINTEXT_X * 2);
+static void clamp(float* value, float max) {
+    if (*value > max) *value = max;
+    if (*value < 0)   *value = 0;
 }
 
-static void mainloop() {
+static void EnsureScrollInBounds() {
+    uint bw, bh;
+    FTGetSize(body, &bw, &bh);
+
+    int contentY = MAINTEXT_Y + TOPBAR_PADDING;
+    float maxScroll = (float)bh - (h - contentY);
+    if (maxScroll < 0) maxScroll = 0;
+
+    clamp(&scroll.target, maxScroll);
+    clamp(&scroll.curr,   maxScroll);
+}
+
+static void UpdateLayout() {
+    SDL_GetWindowSize(window, &w, &h);
+    FTSetWidth(body, w - MAINTEXT_X * 2);
+    EnsureScrollInBounds();
+}
+
+static void UpdateScroll(float dt) {
+    float factor = 1.0f - exp(-SCROLL_SPEED * dt);
+    scroll.curr += (scroll.target - scroll.curr) * factor;
+}
+
+static void DrawTopbar() {
+    uint title_w;
+    FTGetSize(title, &title_w, NULL);
+
+    FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
+
+    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_FRect topbar = { 0, 0, (float)w, (float)MAINTEXT_Y };
+    SDL_RenderFillRect(renderer, &topbar);
+
+    FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
+}
+
+static void DrawBodytext() {
+    int contentY = MAINTEXT_Y + TOPBAR_PADDING;
+
+    SDL_Rect clip = { 0, MAINTEXT_Y, w, h - MAINTEXT_Y };
+    SDL_SetRenderClipRect(renderer, &clip);
+
+    FTDraw(body, MAINTEXT_X, contentY - scroll.curr);
+    SDL_SetRenderClipRect(renderer, NULL);
+}
+
+static void MainLoop();
+
+// i don't know how this works but for whatever reason it's needed
+// without this scroll feels laggy etc. i don't know. ai wrote this.
+#if WEB
+static void RestartWebLoop(void *arg) {
+    (void)arg;
+    lastTicks = SDL_GetTicksNS();
+    emscripten_set_main_loop(MainLoop, 0, 0);
+}
+static void CheckAndKickCompositor(float dt) {
+    static bool compositor_kicked = false;
+    static int frame_counter = 0;
+    if (compositor_kicked) return;
+
+    frame_counter++;
+    if (frame_counter == 10) {
+        if (dt > 0.012f) {
+            compositor_kicked = true;
+            emscripten_cancel_main_loop();
+            emscripten_async_call(RestartWebLoop, NULL, 100);
+        }
+    }
+}
+#endif
+
+static void MainLoop() {
+    uint64_t now = SDL_GetTicksNS();
+    float dt = (float)((now - lastTicks) / 1000000000.0);
+    lastTicks = now;
+    if (dt > 0.1f) dt = 0.1f;
+
+#if WEB
+    CheckAndKickCompositor(dt);
+#endif
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             running = false;
         } else if (event.type == SDL_EVENT_WINDOW_RESIZED) {
-            update_layout();
+            UpdateLayout();
+        } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+            scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
+            EnsureScrollInBounds();
         }
     }
+
+    UpdateScroll(dt);
 
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, 7, 7, 7, 255);
     SDL_RenderClear(renderer);
 
-    uint title_w;
-    ft_get_size(title, &title_w, NULL);
-
-    ft_draw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
-    ft_draw(body, MAINTEXT_X, MAINTEXT_Y);
+    DrawTopbar();
+    DrawBodytext();
 
     SDL_RenderPresent(renderer);
 
@@ -150,6 +171,8 @@ bool init() {
     w = 1024, h = 720;
 #endif
 
+    lastTicks = SDL_GetTicksNS();
+
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_HIGH_PIXEL_DENSITY;
     window = SDL_CreateWindow("C for Web", w, h, flags);
     if (window == NULL)
@@ -159,7 +182,7 @@ bool init() {
     if (renderer == NULL)
         { E(SDL_CreateRenderer); goto e3; }
 
-    if (!load_fonts())
+    if (!LoadFonts())
         { E(TTF_OpenFont); goto e4; }
 
     tengine = TTF_CreateRendererTextEngine(renderer);
@@ -172,26 +195,25 @@ bool init() {
         .text_color = text_color,
     };
 
-    title = ft_create(tengine, &style);
-    if (title == NULL) { E(ft_create); goto e6; }
+    title = CreateFT(tengine, &style);
+    if (title == NULL) { E(CreateFT); goto e6; }
 
-    body = ft_create(tengine, &style);
-    if (body == NULL) { E(ft_create); goto e7; }
+    body = CreateFT(tengine, &style);
+    if (body == NULL) { E(CreateFT); goto e7; }
 
-    if (!ft_set_fragments(title, t_title, sizeof(t_title) / sizeof(t_title[0])))
-        { E(ft_set_fragments); goto e8; }
+    if (!FTSetFragments(title, tTitle, sizeof(tTitle) / sizeof(tTitle[0])))
+        { E(FTSetFragments); goto e8; }
 
-    if (!ft_set_fragments(body, t_description, sizeof(t_description) / sizeof(t_description[0])))
-        { E(ft_set_fragments); goto e8; }
+    if (!FTSetFragments(body, tDescription, sizeof(tDescription) / sizeof(tDescription[0])))
+        { E(FTSetFragments); goto e8; }
 
-    update_layout();
-
+    UpdateLayout();
     return true;
 
-e8: ft_destroy(body);
-e7: ft_destroy(title);
+e8: DestroyFT(body);
+e7: DestroyFT(title);
 e6: TTF_DestroyRendererTextEngine(tengine);
-e5: unload_fonts();
+e5: UnloadFonts();
 e4: SDL_DestroyRenderer(renderer);
 e3: SDL_DestroyWindow(window);
 e2: TTF_Quit();
@@ -205,9 +227,9 @@ int main(int argc, char *argv[]) {
 
 #if WEB
     // see https://wiki.libsdl.org/SDL3/README-emscripten
-    emscripten_set_main_loop(mainloop, 0, 1);
+    emscripten_set_main_loop(MainLoop, 0, 1);
 #else
-    while (true) { mainloop(); }
+    while (true) { MainLoop(); }
 #endif
 
     return 0;
