@@ -10,22 +10,16 @@ ASSETS_DIR  := assets
 # $(SHELL) in make has a special meaning
 EMSHELL := $(SRC_DIR)/shell.html
 
-MD4C_DIR    := deps/md4c
-MD4C_SRCS   := $(MD4C_DIR)/src/md4c.c \
-               $(MD4C_DIR)/src/md4c-html.c \
-               $(MD4C_DIR)/src/entity.c
-
 rwildcard = \
 	$(foreach d,$(wildcard $(1)/*),$(call rwildcard,$(d),$(2))) \
 	$(filter $(subst *,%,$(2)),$(wildcard $(1)/$(2)))
 
-SRCS   := $(call rwildcard,$(SRC_DIR),*.c) $(MD4C_SRCS)
+SRCS   := $(call rwildcard,$(SRC_DIR),*.c)
 ASSET_FILES := $(call rwildcard,$(ASSETS_DIR),*)
 
 INCLUDE_PATHS := \
 	-Iinclude \
-	-Ideps/vector \
-	-I$(MD4C_DIR)/src
+	-Ideps/vector
 
 WEB_CFLAGS := -O2 -Wall \
 		 $(INCLUDE_PATHS) \
