@@ -21,8 +21,11 @@ INCLUDE_PATHS := \
 	-Iinclude \
 	-Ideps/vector
 
-WEB_CFLAGS := -O2 -Wall \
-		 $(INCLUDE_PATHS)
+WEB_CFLAGS := \
+	-O2 -Wall \
+	$(INCLUDE_PATHS) \
+	-sUSE_SDL=3 \
+	-sUSE_SDL_TTF=3
 
 WEB_EMFLAGS := \
 		-sUSE_SDL=3 \
