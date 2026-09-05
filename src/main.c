@@ -192,7 +192,7 @@ bool init() {
 
     lastTicks = SDL_GetTicksNS();
 
-    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE|SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE;
     window = SDL_CreateWindow("C for Web", w, h, flags);
     if (window == NULL)
         { E(SDL_CreateWindow); goto e2; }
