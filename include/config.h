@@ -25,7 +25,22 @@ static const TextFragment tDescription[] = {
     T("\n"),
 
     T_H2("Is it practical? The limitations\n"),
-    T_BOLD("No."), T_ITALIC(" (This section will be expanded in the future, there are many limitations and other issues.)\n"),
+    T_BOLD("No. It is not. "),
+    T("As you might have already noticed, you can't select text on this site. This is because the browser doesn't know that there's text.\n"),
+    T("Because we're rendering everything ourselves to a "), T_CODE("<canvas>"), T(" element, all the browser sees is a grid of pixels. "),
+    T("This means that all the browser features like translators, Find in page, right-click menu, print, or the best extension ever - "),
+    T_ITALIC("Microsoft to Microslop", .href = "https://addons.mozilla.org/en-US/firefox/addon/microsoft-to-microslop/"),
+    T(" won't work. Even basic features like scrolling or clickable links are implemented manually in this page's source code.\n"),
+    T_BOLD("If you want to learn more about how this actually works you can check out "), T_BOLD("our GitHub repository", .href = "https://github.com/Maqi-x/cfw"),
+    T(".\n\n\nI won't cover everything in this section because it would take too long. There are plenty of other issues, but... there are also "),
+    T_ITALIC("some"), T(" benefits. "), T_BOLD("WebAssembly is faster"), T(" than JavaScript. Even though modern JS engines are optimized "),
+    T("they are still slower. Because of dynamic typing, JS can't just be fully AOT-compiled to efficient machine code so instead JS engines rely "),
+    T("on a mix of interpretation and Just-in-Time Compilation. "), T_BOLD("Dynamic typing is the source of all evil again."), T(" Who would have thought?\n"),
+    T("Jokes aside. Yes it is faster, which does not mean that it's practical for pages whose entire job is to display text on the screen. "),
+    T("But this project was never meant to be practical. I'm doing it mostly for fun and because I can. Also, I hate JS, but I hate CSS even more.\n"),
+    T("However, this doesn't mean that WebAssembly is useless! This stack is actually really useful if you're using it for right things, for example, for "),
+    T_BOLD("video games"), T(", Wasm allows us to write high-performance code that runs directly in the browser. It's also really easy to port existing "),
+    T("SDL games to work with Emscripten, or target both native and web platforms."),
     T("\n\n\n\n"),
 
     T_H2("Sources\n"),
@@ -34,11 +49,6 @@ static const TextFragment tDescription[] = {
     T_BOLD("WebAssembly Official Site: "), T("webassembly.org\n", .href = "https://webassembly.org"),
     T_BOLD("WebAssembly Documentation: "), T("developer.mozilla.org/en-US/docs/WebAssembly\n", .href = "https://developer.mozilla.org/en-US/docs/WebAssembly"),
     T("\n\n\n\n\n\n"),
-
-    T_ITALIC("This page is in early development.\n"),
-    T_H2("TODOs:\n"),
-    T(" - Selecting text and right-click menu\n"),
-    T(" - Other stuff.\n"),
 };
 
 static const SDL_Color
