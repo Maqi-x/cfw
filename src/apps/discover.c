@@ -19,8 +19,6 @@
 #define TOTAL_ICON_SIZE \
     (ICON_SIZE + ICON_PADDING)
 
-#define APPS_IN_SECTION 3
-
 typedef struct {
     App app;
     SDL_Texture* tex;
@@ -30,30 +28,39 @@ typedef struct {
     bool hasApp;
 } AppEntry;
 
-struct AppInfo {
-    App app;
-    const char* path;
+static const Section sections[] = {
+    {
+        .title = "Games",
+        .apps = {
+            { APP_SNAKE, "assets/snake.png" },
+            { 0 }, { 0 }, // TODO
+        },
+    },
+    {
+        .title = "Misc",
+        .apps = {
+            { 0 }, { 0 }, { 0 }, // TODO
+        },
+    },
+    {
+        .title = "Demos",
+        .apps = {
+            { APP_SOUNDBOARD, "assets/soundboard.png" },
+            { 0 }, { 0 }, // TODO
+        },
+    },
 };
 
-struct AppInfo games[APPS_IN_SECTION] = {
-    { APP_SNAKE, "assets/snake.png" },
-    { 0 }, { 0 }, // TODO
-};
-
-struct AppInfo demos[APPS_IN_SECTION] = {
-    { APP_SOUNDBOARD, "assets/soundboard.png" },
-    { 0 }, { 0 }, // TODO
-};
+#define NUM_SECTIONS (sizeof(sections) / sizeof(sections[0]))
 
 typedef struct {
-    struct {
-        TTF_Text* games;
-        TTF_Text* demos;
-    } t;
+    TTF_Text* title;
+    SDL_FPoint title_pos;
+    AppEntry apps[APPS_PER_SECTION];
+} SectionState;
 
-    SDL_FPoint games_pos, demos_pos;
-    AppEntry games[APPS_IN_SECTION];
-    AppEntry demos[APPS_IN_SECTION];
+typedef struct {
+    SectionState sections[NUM_SECTIONS];
 } State;
 
 static void InitIcon(AppEntry* entry, App app, const char* path, SDL_FRect rect) {
@@ -78,35 +85,40 @@ void DiscoverAppInit(Window* win) {
     State* state = malloc(sizeof(State));
     assert(state != NULL);
 
-    state->t.games = TTF_CreateText(tengine, f.h1, "Games", 0);
-    assert(state->t.games != NULL);
-    TTF_SetTextColor(state->t.games, TEXT_COLOR);
+    float sx = (DISCOVER_WIDTH - (APPS_PER_SECTION * ICON_SIZE + 2 * ICON_PADDING)) / 2;
 
-    state->t.demos = TTF_CreateText(tengine, f.h1, "Demos", 0);
-    assert(state->t.demos != NULL);
-    TTF_SetTextColor(state->t.demos, TEXT_COLOR);
+    for (uint c = 0; c < NUM_SECTIONS; ++c) {
+        state->sections[c].title = TTF_CreateText(tengine, f.h1, sections[c].title, 0);
+        assert(state->sections[c].title != NULL);
+        TTF_SetTextColor(state->sections[c].title, TEXT_COLOR);
 
-    int tw, th;
-    // The width of both texts is almost identical, so this works just fine.
-    TTF_GetTextSize(state->t.games, &tw, &th);
+        int tw, th;
+        TTF_GetTextSize(state->sections[c].title, &tw, &th);
 
-    state->games_pos = (SDL_FPoint){ (DISCOVER_WIDTH - tw) / 2.0f, 10.0f };
-    state->demos_pos = (SDL_FPoint){ (DISCOVER_WIDTH - tw) / 2.0f, DISCOVER_HEIGHT / 2.0f };
+        // Clang is complaining about integer division being used in a floating point context...
+        // This fucking compiler is so stupid that it doesn't even notice that both operands are
+        // compile time constants and result of the division is integral. I really wish GCC had an LSP.
+        // GCC is simply superior to Clang by any measure and I will never ever change my mind.
+        float numSections = (float)(uint)NUM_SECTIONS;
 
-    float sx = (DISCOVER_WIDTH - (APPS_IN_SECTION * ICON_SIZE + 2 * ICON_PADDING)) / 2;
-    for (uint i = 0; i < APPS_IN_SECTION; ++i) {
-        // i have no idea how to deduplicate this.
-        InitIcon(
-            &state->games[i], games[i].app, games[i].path, (SDL_FRect) {
-            .x = sx + i * TOTAL_ICON_SIZE,
-            .y = state->games_pos.y + HEADER_MARGIN,
-            .w = ICON_SIZE, .h = ICON_SIZE,
-        });
-        InitIcon(&state->demos[i], demos[i].app, demos[i].path, (SDL_FRect) {
-            .x = sx + i * TOTAL_ICON_SIZE,
-            .y = state->demos_pos.y + HEADER_MARGIN,
-            .w = ICON_SIZE, .h = ICON_SIZE,
-        });
+        state->sections[c].title_pos = (SDL_FPoint) {
+            (DISCOVER_WIDTH - tw) / 2.0f,
+            10.0f + c * (DISCOVER_HEIGHT / numSections)
+        };
+
+        for (uint i = 0; i < APPS_PER_SECTION; ++i) {
+            InitIcon(
+                &state->sections[c].apps[i],
+                sections[c].apps[i].app,
+                sections[c].apps[i].path,
+                (SDL_FRect){
+                    .x = sx + i * TOTAL_ICON_SIZE,
+                    .y = state->sections[c].title_pos.y + HEADER_MARGIN,
+                    .w = ICON_SIZE,
+                    .h = ICON_SIZE,
+                }
+            );
+        }
     }
 
     win->userData = state;
@@ -142,15 +154,13 @@ void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_re
     SDL_SetRenderDrawColor(renderer, BG_COLOR);
     SDL_RenderFillRect(renderer, &content_rect);
 
-    TTF_DrawRendererText(state->t.games, content_rect.x + state->games_pos.x, content_rect.y + state->games_pos.y);
-    TTF_DrawRendererText(state->t.demos, content_rect.x + state->demos_pos.x, content_rect.y + state->demos_pos.y);
+    for (uint c = 0; c < NUM_SECTIONS; ++c) {
+        SectionState* sec = &state->sections[c];
+        TTF_DrawRendererText(sec->title, content_rect.x + sec->title_pos.x, content_rect.y + sec->title_pos.y);
 
-    for (uint i = 0; i < APPS_IN_SECTION; ++i) {
-        AppEntry* icons[] = { &state->games[i], &state->demos[i] };
-
-        for (uint j = 0; j < 2; j++) {
-            if (!icons[j]->hasApp) continue;
-            DrawAppIconAndName(content_rect, icons[j]);
+        for (uint i = 0; i < APPS_PER_SECTION; ++i) {
+            if (!sec->apps[i].hasApp) continue;
+            DrawAppIconAndName(content_rect, &sec->apps[i]);
         }
     }
 }
@@ -177,12 +187,15 @@ bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
     State* s = win->userData;
 
     bool anyHovered = false;
-    for (uint i = 0; i < APPS_IN_SECTION; ++i) {
-        if (HandleIconEvent(&s->games[i], event, win, local_mouse)) return true;
-        if (HandleIconEvent(&s->demos[i], event, win, local_mouse)) return true;
+    for (uint c = 0; c < NUM_SECTIONS; ++c) {
+        for (uint i = 0; i < APPS_PER_SECTION; ++i) {
+            if (HandleIconEvent(&s->sections[c].apps[i], event, win, local_mouse))
+                return true;
 
-        if (s->games[i].hovered || s->demos[i].hovered)
-            anyHovered = true;
+            if (s->sections[c].apps[i].hovered) {
+                anyHovered = true;
+            }
+        }
     }
 
     return anyHovered;
@@ -190,10 +203,16 @@ bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
 
 bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
     State* s = win->userData;
-    for (uint i = 0; i < APPS_IN_SECTION; ++i) {
-        if (s->games[i].hasApp && SDL_PointInRectFloat(&local_mouse, &s->games[i].rect)) return true;
-        if (s->demos[i].hasApp && SDL_PointInRectFloat(&local_mouse, &s->demos[i].rect)) return true;
+
+    for (uint c = 0; c < NUM_SECTIONS; ++c) {
+        for (uint i = 0; i < APPS_PER_SECTION; ++i) {
+            AppEntry* entry = &s->sections[c].apps[i];
+            if (entry->hasApp && SDL_PointInRectFloat(&local_mouse, &entry->rect)) {
+                return true;
+            }
+        }
     }
+
     return false;
 }
 
@@ -201,13 +220,12 @@ void DiscoverAppCleanup(Window* win) {
     State* state = win->userData;
     assert(state != NULL);
 
-    TTF_DestroyText(state->t.games);
-    TTF_DestroyText(state->t.demos);
-    for (uint i = 0; i < APPS_IN_SECTION; ++i) {
-        if (state->games[i].tex != NULL) SDL_DestroyTexture(state->games[i].tex);
-        if (state->demos[i].tex != NULL) SDL_DestroyTexture(state->demos[i].tex);
-        if (state->games[i].title != NULL) TTF_DestroyText(state->games[i].title);
-        if (state->demos[i].title != NULL) TTF_DestroyText(state->demos[i].title);
+    for (uint c = 0; c < NUM_SECTIONS; ++c) {
+        if (state->sections[c].title != NULL) TTF_DestroyText(state->sections[c].title);
+        for (uint i = 0; i < APPS_PER_SECTION; ++i) {
+            if (state->sections[c].apps[i].tex != NULL) SDL_DestroyTexture(state->sections[c].apps[i].tex);
+            if (state->sections[c].apps[i].title != NULL) TTF_DestroyText(state->sections[c].apps[i].title);
+        }
     }
 
     free(state);

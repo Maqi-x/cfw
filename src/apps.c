@@ -62,7 +62,7 @@ bool AppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
 const char* GetAppTitle(App app) {
     switch (app) {
     case APP_DISCOVER:
-        return "Games and Demos";
+        return "Discover";
     case APP_SNAKE:
         return "Snake";
     case APP_SOUNDBOARD:

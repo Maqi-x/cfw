@@ -5,7 +5,19 @@
 #include <windows.h>
 
 #define DISCOVER_WIDTH  460.0f
-#define DISCOVER_HEIGHT 370.0f
+#define DISCOVER_HEIGHT 565.0f
+
+#define APPS_PER_SECTION 3
+
+typedef struct {
+    App app;
+    const char* path;
+} AppInfo;
+
+typedef struct {
+    const char* title;
+    AppInfo apps[APPS_PER_SECTION];
+} Section;
 
 void DiscoverAppInit(Window* win);
 void DiscoverAppCleanup(Window* win);
