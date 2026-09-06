@@ -11,7 +11,8 @@
 
 typedef enum {
     APP_DISCOVER,
-    // TODO: games, demos and other stuff
+    APP_SNAKE,
+    APP_SOUNDBOARD,
 } App;
 
 typedef struct Window {
@@ -33,6 +34,7 @@ void InitWindows();
 void DeinitWindows();
 
 Window* WindowCreate(App app);
+void WindowReplaceApp(Window* win, App newApp);
 void WindowDestroy(Window* win);
 void WindowBringToFront(Window* win);
 void WindowFocus(Window* win);

@@ -1,9 +1,10 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
+#include <windows.h>
 #include <config.h>
 #include <fonts.h>
-#include <windows.h>
+#include <utils.h>
 #include <apps.h>
 
 #include <stdbool.h>
@@ -283,24 +284,6 @@ static void MainLoop() {
     }
 }
 
-static SDL_Texture* LoadTexture(const char* file) {
-    SDL_Surface* surf = SDL_LoadPNG(file);
-    if (surf == NULL) {
-        SDL_Log("Failed to load %s: %s", file, SDL_GetError());
-        return NULL;
-    }
-
-    SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surf);
-    SDL_DestroySurface(surf);
-
-    if (tex == NULL) {
-        SDL_Log("Failed to create texture from %s: %s", file, SDL_GetError());
-        return NULL;
-    }
-
-    return tex;
-}
-
 bool init() {
     if (!SDL_Init(SDL_INIT_VIDEO))
         { E(SDL_Init); goto e0; }
@@ -361,7 +344,7 @@ bool init() {
     cursor.pointer = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
     if (cursor.pointer == NULL) E(SDL_CreateSystemCursor);
 
-    githubIcon = LoadTexture("assets/github.png");
+    githubIcon = LoadTexPNG("assets/github.png");
     if (githubIcon == NULL) E(SDL_LoadPNG);
 
     UpdateLayout();

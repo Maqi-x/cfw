@@ -18,5 +18,9 @@ typedef unsigned char uchar;
 #endif
 
 typedef struct TTF_TextEngine TTF_TextEngine;
-extern TTF_TextEngine* tengine;
+typedef struct SDL_Renderer SDL_Renderer;
+typedef struct SDL_Window SDL_Window;
 
+extern TTF_TextEngine* tengine;
+extern SDL_Renderer* renderer;
+extern SDL_Window* window;

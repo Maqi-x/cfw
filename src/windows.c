@@ -168,6 +168,30 @@ Window* WindowCreate(App app) {
     }
 }
 
+void WindowReplaceApp(Window* win, App newApp) {
+    if (win == NULL) return;
+
+    CleanupApp(win);
+    if (win->titleText != NULL) {
+        TTF_DestroyText(win->titleText);
+    }
+
+    win->app = newApp;
+    win->title = GetAppTitle(newApp);
+
+    float aw = 400.0f, ah = 300.0f;
+    GetAppSize(newApp, &aw, &ah);
+    win->rect.w = aw;
+    win->rect.h = ah;
+
+    win->titleText = TTF_CreateText(tengine, f.bold, win->title, strlen(win->title));
+    if (win->titleText != NULL) {
+        TTF_SetTextColor(win->titleText, 240, 240, 240, 255);
+    }
+
+    InitApp(win);
+}
+
 static int GetWindowIndex(Window* win) {
     for (uint i = 0; i < numWindows; ++i) {
         if (windows[i] == win) return i;
@@ -399,7 +423,13 @@ bool WindowWantsPointerCursor(SDL_FPoint mouse) {
         SDL_FRect totalRect = GetTotalWindowRect(win);
         if (SDL_PointInRectFloat(&mouse, &totalRect)) {
             SDL_FRect closeRect = GetCloseBtnRect(win);
-            return SDL_PointInRectFloat(&mouse, &closeRect);
+            if (SDL_PointInRectFloat(&mouse, &closeRect)) return true;
+
+            SDL_FRect contentRect = GetContentRect(win);
+            if (SDL_PointInRectFloat(&mouse, &contentRect)) {
+                SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
+                return AppWantsPointerCursor(win, local);
+            }
         }
     });
     return false;

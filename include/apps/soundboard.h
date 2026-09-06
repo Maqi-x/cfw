@@ -1,0 +1,11 @@
+#pragma once
+
+#include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
+#include <windows.h>
+
+void SoundboardAppInit(Window* win);
+void SoundboardAppCleanup(Window* win);
+
+void SoundboardAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect);
+bool SoundboardAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse);
