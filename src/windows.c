@@ -383,6 +383,14 @@ static bool HandleMouseMotion(const SDL_Event* event, SDL_FPoint mouse) {
 bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse) {
     if (numWindows == 0) return false;
 
+    if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_TEXT_INPUT) {
+        Window* top = WTOP();
+        if (top != NULL) {
+            return HandleAppEvent(top, event, (SDL_FPoint) { 0.0f, 0.0f });
+        }
+        return false;
+    }
+
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         if (event->button.button == SDL_BUTTON_LEFT) {
             return HandleDownLMB(event, mouse);

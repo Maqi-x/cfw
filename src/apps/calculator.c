@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define BUFSIZE 30
-
 #define C1 ((SDL_Color) { 17, 25,  36  })
 #define C2 ((SDL_Color) { 21, 34,  51  })
 #define C3 ((SDL_Color) { 23, 108, 235 })
@@ -29,7 +27,22 @@ static const ButtonDef defs[] = {
 #define COLUMNS 4
 #define ROWS    5
 
-#define DISPLAY_HEIGHT 160.0f
+#define DISPLAY_HEIGHT   160.0f
+#define DISPLAY_PAD_X    16.0f
+#define DISPLAY_PAD_Y    12.0f
+#define DISPLAY_MAX_ROWS 3
+
+// C does not allow floating point math in constant integer expressions
+// even if the result is casted to int and can be evaluated fully at compile
+// time. I don't know why. Don't ask me. This expression represents:
+//   (22.5 * DISPLAY_MAX_ROWS)
+// 22.5 represents number of digits that fit on a single display line.
+// Rounding down is actually intentional.
+#define BUFSIZE ((225 * DISPLAY_MAX_ROWS) / 10)
+
+#define DISPLAY_TEXT_WIDTH  (CALC_WIDTH - 32.0f)
+#define DISPLAY_TEXT_HEIGHT (DISPLAY_HEIGHT - 24.0f)
+
 #define BTN_AREA_HEIGH (CALC_HEIGHT - DISPLAY_HEIGHT)
 
 #define BUTTON_WIDTH  (CALC_WIDTH / COLUMNS)
@@ -49,9 +62,10 @@ typedef struct {
 
 typedef struct {
     Button buttons[NUM_BUTTONS];
+
     char buffer[BUFSIZE];
+    usize length;
     TTF_Text* text;
-    TTF_Font* currentFont;
 
     bool isResult;
     bool overflow;
@@ -61,18 +75,19 @@ typedef struct {
 
 void CalcAppInit(Window* win) {
     State* state = malloc(sizeof(State));
+    assert(state != NULL);
 
     memset(state->buttons, 0, sizeof(state->buttons));
     state->isResult = false;
+    state->overflow = false;
 
     state->hoveredButton = -1;
     state->buffer[0] = '0';
-    state->buffer[1] = '\0';
+    state->length = 1;
 
-    state->currentFont = f.h1;
-
-    state->text = TTF_CreateText(tengine, f.h1, state->buffer, 0);
+    state->text = TTF_CreateText(tengine, f.h1, state->buffer, state->length);
     assert(state->text != NULL);
+    TTF_SetTextColor(state->text, 255, 255, 255, 255);
 
     for (uint i = 0; i < NUM_BUTTONS; ++i) {
         uint row = i / COLUMNS;
@@ -80,6 +95,7 @@ void CalcAppInit(Window* win) {
 
         TTF_Text* tlabel = TTF_CreateText(tengine, f.h1, &defs[i].label, 1);
         assert(tlabel != NULL);
+        TTF_SetTextColor(tlabel, 255, 255, 255, 255);
 
         state->buttons[i] = (Button) {
             .label = defs[i].label,
@@ -99,15 +115,161 @@ void CalcAppInit(Window* win) {
 
 void CalcAppCleanup(Window* win) {
     State* state = win->userData;
+    assert(state != NULL);
+
     TTF_DestroyText(state->text);
+    for (uint i = 0; i < NUM_BUTTONS; ++i) {
+        TTF_DestroyText(state->buttons[i].tlabel);
+    }
     free(win->userData);
+    win->userData = NULL;
 }
 
-static SDL_Color Darker(SDL_Color bg) {
+static SDL_Color Brighter(SDL_Color bg) {
     bg.r = MIN(bg.r + 30, 255);
     bg.g = MIN(bg.g + 30, 255);
     bg.b = MIN(bg.b + 30, 255);
     return bg;
+}
+
+static bool FitsDisplay(TTF_Font* font, const char* text, usize len) {
+    int w, h;
+    TTF_GetStringSize(font, text, len, &w, &h);
+    return w <= DISPLAY_TEXT_WIDTH && h <= DISPLAY_TEXT_HEIGHT;
+}
+
+static int GetButtonAtPoint(const State* state, SDL_FPoint point) {
+    for (uint i = 0; i < NUM_BUTTONS; ++i) {
+        if (SDL_PointInRectFloat(&point, &state->buttons[i].rect)) {
+            return (int)i;
+        }
+    }
+    return NOHOVER;
+}
+
+// pascal grade coding
+#define LineEnding '\n'
+
+static usize SplitRows(const char* src, usize len, char* dst, TTF_Font* font) {
+    if (len <= 1) {
+        memcpy(dst, src, len);
+        return len;
+    }
+
+    usize srcOff = 0, dstOff = 0;
+    for (uint r = 0; r < DISPLAY_MAX_ROWS; ++r) {
+        if (srcOff == len) break;
+
+        const char* rest = src + srcOff;
+        usize restLen = len - srcOff;
+
+        int w, h;
+        TTF_GetStringSize(font, rest, restLen, &w, &h);
+
+        bool wrap =
+            (w > DISPLAY_TEXT_WIDTH) &&
+            (r < DISPLAY_MAX_ROWS - 1);
+
+        usize split = restLen;
+        if (wrap) {
+            for (split = restLen - 1; split > 1; --split) {
+                TTF_GetStringSize(font, src + srcOff, split, &w, &h);
+                if (w <= DISPLAY_TEXT_WIDTH) break;
+            }
+        }
+
+        memcpy(dst + dstOff, src + srcOff, split);
+        dstOff += split, srcOff += split;
+
+        if (wrap) dst[dstOff++] = LineEnding;
+    }
+
+    return dstOff;
+}
+
+static void UpdateDisplayText(State* state) {
+    TTF_Font* font = f.h1;
+    const char* text = state->buffer;
+    usize len = state->length;
+
+    char display[BUFSIZE + 2];
+    if (!FitsDisplay(f.h1, state->buffer, state->length)) {
+        font = f.h2;
+
+        len = SplitRows(
+            state->buffer, state->length,
+            display, font
+        );
+
+        text = display;
+    }
+
+    TTF_SetTextFont(state->text, font);
+    TTF_SetTextString(state->text, text, len);
+}
+
+static void SetBuffer(State* state, const char* value) {
+    usize len = strlen(value);
+    assert(len < sizeof(state->buffer));
+    memcpy(state->buffer, value, len + 1);
+    state->length = len;
+    UpdateDisplayText(state);
+}
+
+static void AppendBufferChar(State* state, char c) {
+    if (state->length == 1 && state->buffer[0] == '0') {
+        state->buffer[0] = c;
+        state->buffer[1] = '\0';
+    } else if (state->length + 1 < sizeof(state->buffer)) {
+        state->buffer[state->length] = c;
+        state->buffer[state->length + 1] = '\0';
+        state->length++;
+    } else {
+        return;
+    }
+
+    UpdateDisplayText(state);
+}
+
+static void HandleInputSymbol(State* state, char c) {
+    switch (c) {
+    case '=':
+        assert(!"TODO");
+    case 'C':
+        return SetBuffer(state, "0");
+    default:
+        return AppendBufferChar(state, c);
+    }
+}
+
+static bool HandleKeyEvent(State* state, SDL_Keycode key) {
+    switch (key) {
+    case SDLK_0: case SDLK_KP_0: HandleInputSymbol(state, '0'); return true;
+    case SDLK_1: case SDLK_KP_1: HandleInputSymbol(state, '1'); return true;
+    case SDLK_2: case SDLK_KP_2: HandleInputSymbol(state, '2'); return true;
+    case SDLK_3: case SDLK_KP_3: HandleInputSymbol(state, '3'); return true;
+    case SDLK_4: case SDLK_KP_4: HandleInputSymbol(state, '4'); return true;
+    case SDLK_5: case SDLK_KP_5: HandleInputSymbol(state, '5'); return true;
+    case SDLK_6: case SDLK_KP_6: HandleInputSymbol(state, '6'); return true;
+    case SDLK_7: case SDLK_KP_7: HandleInputSymbol(state, '7'); return true;
+    case SDLK_8: case SDLK_KP_8: HandleInputSymbol(state, '8'); return true;
+    case SDLK_9: case SDLK_KP_9: HandleInputSymbol(state, '9'); return true;
+
+    case SDLK_PLUS:     case SDLK_KP_PLUS:     HandleInputSymbol(state, '+'); return true;
+    case SDLK_MINUS:    case SDLK_KP_MINUS:    HandleInputSymbol(state, '-'); return true;
+    case SDLK_ASTERISK: case SDLK_KP_MULTIPLY: HandleInputSymbol(state, '*'); return true;
+    case SDLK_SLASH:    case SDLK_KP_DIVIDE:   HandleInputSymbol(state, '/'); return true;
+    case SDLK_PERIOD:   case SDLK_KP_PERIOD:   HandleInputSymbol(state, '.'); return true;
+    case SDLK_EQUALS:   case SDLK_KP_EQUALS:   HandleInputSymbol(state, '='); return true;
+
+    case SDLK_LEFTPAREN:  HandleInputSymbol(state, '('); return true;
+    case SDLK_RIGHTPAREN: HandleInputSymbol(state, ')'); return true;
+    case SDLK_CARET:      HandleInputSymbol(state, '^'); return true;
+    case SDLK_C:          HandleInputSymbol(state, 'C'); return true;
+
+    default:
+        return false;
+    }
 }
 
 void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
@@ -122,6 +284,17 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) 
         .h = DISPLAY_HEIGHT,
     });
 
+    int tw = 0, th = 0;
+    TTF_GetTextSize(state->text, &tw, &th);
+
+    float tx = content_rect.x + content_rect.w - DISPLAY_PAD_X - tw;
+    float ty = content_rect.y + (DISPLAY_HEIGHT - th) / 2.0f;
+
+    tx = MIN(tx, content_rect.x + DISPLAY_PAD_X);
+    ty = MIN(ty, content_rect.y + DISPLAY_PAD_Y);
+
+    TTF_DrawRendererText(state->text, tx, ty);
+
     /// buttons ///
     for (int i = 0; i < NUM_BUTTONS; ++i) {
         Button* btn = &state->buttons[i];
@@ -134,7 +307,7 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) 
         /// background ///
         SDL_Color bg = btn->bg;
         if (state->hoveredButton == i)
-            bg = Darker(bg);
+            bg = Brighter(bg);
 
         SDL_SetRenderDrawColor(renderer, bg.r, bg.g, bg.b, 255);
         SDL_RenderFillRect(renderer, &rect);
@@ -155,15 +328,21 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) 
 
 bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse) {
     State* state = win->userData;
+
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
-        state->hoveredButton = NOHOVER;
-        for (uint i = 0; i < NUM_BUTTONS; ++i) {
-            if (SDL_PointInRectFloat(&local_mouse, &state->buttons[i].rect)) {
-                state->hoveredButton = i;
-                break;
+        state->hoveredButton = GetButtonAtPoint(state, local_mouse);
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        if (event->button.button == SDL_BUTTON_LEFT) {
+            int btn = GetButtonAtPoint(state, local_mouse);
+            if (btn != NOHOVER) {
+                HandleInputSymbol(state, state->buttons[btn].label);
+                return true;
             }
         }
+    } else if (event->type == SDL_EVENT_KEY_DOWN && event->key.down) {
+        return HandleKeyEvent(state, event->key.key);
     }
+
     return false;
 }
 
@@ -171,4 +350,3 @@ bool CalcAppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
     State* state = win->userData;
     return state->hoveredButton != NOHOVER;
 }
-
