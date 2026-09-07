@@ -3,6 +3,10 @@
 #include <SDL3/SDL.h>
 #include <config.h>
 
+// winapi grade coding
+#define MAX(p, q) (((p) > (q)) ? (p) : (q))
+#define MIN(p, q) (((p) < (q)) ? (p) : (q))
+
 static inline SDL_Texture* LoadTexPNG(const char* file) {
     SDL_Surface* surf = SDL_LoadPNG(file);
     if (surf == NULL) {

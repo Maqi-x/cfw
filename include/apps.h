@@ -3,9 +3,6 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <windows.h>
-#include <apps/discover.h>
-#include <apps/snake.h>
-#include <apps/soundboard.h>
 
 void InitApp(Window* win);
 void CleanupApp(Window* win);

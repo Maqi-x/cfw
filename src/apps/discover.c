@@ -39,7 +39,8 @@ static const Section sections[] = {
     {
         .title = "Misc",
         .apps = {
-            { 0 }, { 0 }, { 0 }, // TODO
+            { APP_CALCULATOR, "assets/calculator.png" },
+            { 0 }, { 0 }, // TODO
         },
     },
     {

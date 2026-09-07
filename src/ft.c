@@ -1,4 +1,5 @@
 #include <ft.h>
+#include <utils.h>
 #include <vector.h>
 
 #include <ctype.h>
@@ -16,9 +17,6 @@
 #undef isspace
 #define isspace(c) \
     isspace((uchar)c)
-
-// winapi grade coding
-#define max(p, q) (((p) > (q)) ? (p) : (q))
 
 typedef struct {
     TTF_Text* text;
@@ -101,8 +99,8 @@ static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, floa
         .href = href
     });
 
-    ft->cw = max(x + w, ft->cw);
-    ft->ch = max(y + h, ft->cw);
+    ft->cw = MAX(x + w, ft->cw);
+    ft->ch = MAX(y + h, ft->cw);
     return true;
 }
 
@@ -132,7 +130,7 @@ static bool AppendToken(
         return false;
 
     *x += w;
-    *lineheight = max(*lineheight, h);
+    *lineheight = MAX(*lineheight, h);
 
     return true;
 }

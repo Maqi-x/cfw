@@ -13,6 +13,7 @@ typedef enum {
     APP_DISCOVER,
     APP_SNAKE,
     APP_SOUNDBOARD,
+    APP_CALCULATOR,
 } App;
 
 typedef struct Window {
