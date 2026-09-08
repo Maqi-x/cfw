@@ -1,10 +1,13 @@
 #include <apps/calculator.h>
-#include <string.h>
+
 #include <utils.h>
 #include <fonts.h>
+#include <eval.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define C1 ((SDL_Color) { 17, 25,  36  })
 #define C2 ((SDL_Color) { 21, 34,  51  })
@@ -67,6 +70,7 @@ typedef struct {
     usize length;
     TTF_Text* text;
 
+    bool isError;
     bool isResult;
     bool overflow;
 
@@ -78,6 +82,7 @@ void CalcAppInit(Window* win) {
     assert(state != NULL);
 
     memset(state->buttons, 0, sizeof(state->buttons));
+    state->isError  = false;
     state->isResult = false;
     state->overflow = false;
 
@@ -87,7 +92,6 @@ void CalcAppInit(Window* win) {
 
     state->text = TTF_CreateText(tengine, f.h1, state->buffer, state->length);
     assert(state->text != NULL);
-    TTF_SetTextColor(state->text, 255, 255, 255, 255);
 
     for (uint i = 0; i < NUM_BUTTONS; ++i) {
         uint row = i / COLUMNS;
@@ -204,6 +208,11 @@ static void UpdateDisplayText(State* state) {
         text = display;
     }
 
+    if (state->isError)
+        TTF_SetTextColor(state->text, 191, 42, 42, 255);
+    else
+        TTF_SetTextColor(state->text, 255, 255, 255, 255);
+
     TTF_SetTextFont(state->text, font);
     TTF_SetTextString(state->text, text, len);
 }
@@ -216,7 +225,20 @@ static void SetBuffer(State* state, const char* value) {
     UpdateDisplayText(state);
 }
 
+static bool isOp(char c) {
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '^';
+}
+
 static void AppendBufferChar(State* state, char c) {
+    if (state->isResult) {
+        if (state->isError || !isOp(c)) {
+            state->length = 0;
+        }
+
+        state->isError = false;
+        state->isResult = false;
+    }
+
     if (state->length == 1 && state->buffer[0] == '0') {
         state->buffer[0] = c;
         state->buffer[1] = '\0';
@@ -231,10 +253,43 @@ static void AppendBufferChar(State* state, char c) {
     UpdateDisplayText(state);
 }
 
+static void HandleEvalError(State* state, EvalCode code) {
+    state->isError = true;
+    switch (code ){
+    case EVAL_ERR_INV_SYNTAX:
+        return SetBuffer(state, "INVALID SYNTAX");
+    case EVAL_ERR_UNEXP_CHAR:
+        return SetBuffer(state, "UNEXPECTED CHAR");
+    case EVAL_ERR_DIV_BY_ZERO:
+        return SetBuffer(state, "DIVISION BY ZERO");
+    case EVAL_OK:
+        // to make the compiler happy
+        unreachable();
+    }
+}
+
 static void HandleInputSymbol(State* state, char c) {
     switch (c) {
-    case '=':
-        assert(!"TODO");
+    case '=': {
+        state->isResult = true;
+
+        EvalOutput eo = eval(state->buffer, state->length);
+        if (eo.ecode != EVAL_OK)
+            return HandleEvalError(state, eo.ecode);
+
+        int length =
+            snprintf(state->buffer, BUFSIZE, "%g", eo.result);
+
+        if (length > BUFSIZE) {
+            state->isError = true;
+            SetBuffer(state, "OVERFLOW");
+            return;
+        }
+
+        state->length = length;
+        UpdateDisplayText(state);
+        break;
+    }
     case 'C':
         return SetBuffer(state, "0");
     default:
@@ -242,34 +297,69 @@ static void HandleInputSymbol(State* state, char c) {
     }
 }
 
-static bool HandleKeyEvent(State* state, SDL_Keycode key) {
+static bool HandleKeyEvent(State* state, SDL_Keycode key, SDL_Keymod mod) {
+    bool shift = (mod & SDL_KMOD_SHIFT) != 0;
+
     switch (key) {
-    case SDLK_0: case SDLK_KP_0: HandleInputSymbol(state, '0'); return true;
-    case SDLK_1: case SDLK_KP_1: HandleInputSymbol(state, '1'); return true;
-    case SDLK_2: case SDLK_KP_2: HandleInputSymbol(state, '2'); return true;
-    case SDLK_3: case SDLK_KP_3: HandleInputSymbol(state, '3'); return true;
-    case SDLK_4: case SDLK_KP_4: HandleInputSymbol(state, '4'); return true;
-    case SDLK_5: case SDLK_KP_5: HandleInputSymbol(state, '5'); return true;
-    case SDLK_6: case SDLK_KP_6: HandleInputSymbol(state, '6'); return true;
-    case SDLK_7: case SDLK_KP_7: HandleInputSymbol(state, '7'); return true;
-    case SDLK_8: case SDLK_KP_8: HandleInputSymbol(state, '8'); return true;
-    case SDLK_9: case SDLK_KP_9: HandleInputSymbol(state, '9'); return true;
+    case SDLK_0:
+        if (shift) HandleInputSymbol(state, ')');
+        else       HandleInputSymbol(state, '0');
+        return true;
+
+    case SDLK_1: if (!shift) { HandleInputSymbol(state, '1'); return true; } break;
+    case SDLK_2: if (!shift) { HandleInputSymbol(state, '2'); return true; } break;
+    case SDLK_3: if (!shift) { HandleInputSymbol(state, '3'); return true; } break;
+    case SDLK_4: if (!shift) { HandleInputSymbol(state, '4'); return true; } break;
+    case SDLK_5: if (!shift) { HandleInputSymbol(state, '5'); return true; } break;
+    case SDLK_6:
+        if (shift) HandleInputSymbol(state, '^');
+        else       HandleInputSymbol(state, '6');
+        return true;
+    case SDLK_7: if (!shift) { HandleInputSymbol(state, '7'); return true; } break;
+    case SDLK_8:
+        if (shift) HandleInputSymbol(state, '*');
+        else       HandleInputSymbol(state, '8');
+        return true;
+    case SDLK_9:
+        if (shift) HandleInputSymbol(state, '(');
+        else       HandleInputSymbol(state, '9');
+        return true;
+
+    case SDLK_KP_0: HandleInputSymbol(state, '0'); return true;
+    case SDLK_KP_1: HandleInputSymbol(state, '1'); return true;
+    case SDLK_KP_2: HandleInputSymbol(state, '2'); return true;
+    case SDLK_KP_3: HandleInputSymbol(state, '3'); return true;
+    case SDLK_KP_4: HandleInputSymbol(state, '4'); return true;
+    case SDLK_KP_5: HandleInputSymbol(state, '5'); return true;
+    case SDLK_KP_6: HandleInputSymbol(state, '6'); return true;
+    case SDLK_KP_7: HandleInputSymbol(state, '7'); return true;
+    case SDLK_KP_8: HandleInputSymbol(state, '8'); return true;
+    case SDLK_KP_9: HandleInputSymbol(state, '9'); return true;
+
+    case SDLK_EQUALS:
+        if (shift) HandleInputSymbol(state, '+');
+        else       HandleInputSymbol(state, '=');
+        return true;
 
     case SDLK_PLUS:     case SDLK_KP_PLUS:     HandleInputSymbol(state, '+'); return true;
     case SDLK_MINUS:    case SDLK_KP_MINUS:    HandleInputSymbol(state, '-'); return true;
     case SDLK_ASTERISK: case SDLK_KP_MULTIPLY: HandleInputSymbol(state, '*'); return true;
     case SDLK_SLASH:    case SDLK_KP_DIVIDE:   HandleInputSymbol(state, '/'); return true;
     case SDLK_PERIOD:   case SDLK_KP_PERIOD:   HandleInputSymbol(state, '.'); return true;
-    case SDLK_EQUALS:   case SDLK_KP_EQUALS:   HandleInputSymbol(state, '='); return true;
+
+    case SDLK_KP_EQUALS: case SDLK_RETURN: case SDLK_KP_ENTER:
+        HandleInputSymbol(state, '='); return true;
 
     case SDLK_LEFTPAREN:  HandleInputSymbol(state, '('); return true;
     case SDLK_RIGHTPAREN: HandleInputSymbol(state, ')'); return true;
     case SDLK_CARET:      HandleInputSymbol(state, '^'); return true;
-    case SDLK_C:          HandleInputSymbol(state, 'C'); return true;
+    case SDLK_C: case SDLK_ESCAPE: HandleInputSymbol(state, 'C'); return true;
 
     default:
         return false;
     }
+
+    return false;
 }
 
 void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
@@ -340,7 +430,7 @@ bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mo
             }
         }
     } else if (event->type == SDL_EVENT_KEY_DOWN && event->key.down) {
-        return HandleKeyEvent(state, event->key.key);
+        return HandleKeyEvent(state, event->key.key, event->key.mod);
     }
 
     return false;
