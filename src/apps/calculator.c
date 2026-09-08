@@ -262,6 +262,8 @@ static void HandleEvalError(State* state, EvalCode code) {
         return SetBuffer(state, "UNEXPECTED CHAR");
     case EVAL_ERR_DIV_BY_ZERO:
         return SetBuffer(state, "DIVISION BY ZERO");
+    case EVAL_ERR_NOT_A_NUM:
+        return SetBuffer(state, "NOT A NUMBER");
     case EVAL_OK:
         // to make the compiler happy
         unreachable();

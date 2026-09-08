@@ -33,7 +33,7 @@ typedef struct {
 } Lexer;
 
 static bool lexer_next(Lexer* lex, Token* out_token) {
-    while (lex->pos < lex->len && isspace(lex->input[lex->pos])) {
+    while (lex->pos < lex->len && isspace((uchar)lex->input[lex->pos])) {
         lex->pos++;
     }
 
@@ -43,16 +43,18 @@ static bool lexer_next(Lexer* lex, Token* out_token) {
     }
 
     char c = lex->input[lex->pos];
-    if (isdigit(c)) {
+    if (isdigit((uchar)c) || c == 'i') {
         char* endptr;
 
         const char* p = lex->input + lex->pos;
         double val = strtod(p, &endptr);
-        lex->pos += endptr - p;
+        if (endptr > p) {
+            lex->pos += endptr - p;
 
-        out_token->type = TT_NUM;
-        out_token->value = val;
-        return true;
+            out_token->type = TT_NUM;
+            out_token->value = val;
+            return true;
+        }
     }
 
     lex->pos++;
@@ -87,9 +89,9 @@ static Token advance(Eval* e) {
     return t;
 }
 
-static double parse_expr(Eval* e);
+static double eval_expr(Eval* e);
 
-static double parse_primary(Eval* e) {
+static double eval_primary(Eval* e) {
     if (e->curr.type == TT_NUM) {
         double val = e->curr.value;
         advance(e);
@@ -98,7 +100,7 @@ static double parse_primary(Eval* e) {
 
     if (e->curr.type == TT_LPAREN) {
         advance(e);
-        double val = parse_expr(e);
+        double val = eval_expr(e);
         if (e->err == EVAL_OK && e->curr.type != TT_RPAREN) {
             e->err = EVAL_ERR_INV_SYNTAX;
         }
@@ -112,36 +114,39 @@ static double parse_primary(Eval* e) {
     return 3.14;
 }
 
-static double parse_unary(Eval* e) {
+static double eval_unary(Eval* e) {
+    if (e->err != EVAL_OK)
+        return 0.0;
+
     if (e->curr.type == TT_SUB) {
         advance(e);
-        return -parse_unary(e);
+        return -eval_unary(e);
     }
     if (e->curr.type == TT_ADD) {
         advance(e);
-        return parse_unary(e);
+        return eval_unary(e);
     }
 
-    return parse_primary(e);
+    return eval_primary(e);
 }
 
-static double parse_pow(Eval* e) {
-    double base = parse_unary(e);
+static double eval_pow(Eval* e) {
+    double base = eval_unary(e);
     if (e->err == EVAL_OK && e->curr.type == TT_POW) {
         advance(e);
-        double exponent = parse_pow(e);
+        double exponent = eval_pow(e);
         return pow(base, exponent);
     }
 
     return base;
 }
 
-static double parse_term(Eval* e) {
-    double left = parse_pow(e);
+static double eval_term(Eval* e) {
+    double left = eval_pow(e);
     while (e->err == EVAL_OK && (e->curr.type == TT_MUL || e->curr.type == TT_DIV)) {
         TokenType op = e->curr.type;
         advance(e);
-        double right = parse_pow(e);
+        double right = eval_pow(e);
         if (e->err != EVAL_OK) break;
 
         if (op == TT_MUL) {
@@ -158,12 +163,12 @@ static double parse_term(Eval* e) {
     return left;
 }
 
-static double parse_expr(Eval* e) {
-    double left = parse_term(e);
+static double eval_expr(Eval* e) {
+    double left = eval_term(e);
     while (e->err == EVAL_OK && (e->curr.type == TT_ADD || e->curr.type == TT_SUB)) {
         TokenType op = advance(e).type;
 
-        double right = parse_term(e);
+        double right = eval_term(e);
         if (e->err != EVAL_OK) break;
 
         if (op == TT_ADD) {
@@ -187,14 +192,14 @@ EvalOutput eval(const char* input, usize len) {
     // should not happen
     assert(e.curr.type != TT_EOF);
 
-    double result = parse_expr(&e);
-
-    if (e.err != EVAL_OK) {
+    double result = eval_expr(&e);
+    if (e.err != EVAL_OK)
         return (EvalOutput) { .ecode = e.err };
-    }
-    if (e.curr.type != TT_EOF) {
+
+    if (e.curr.type != TT_EOF)
         return (EvalOutput) { .ecode = EVAL_ERR_INV_SYNTAX };
-    }
+    if (isnan(result))
+        return (EvalOutput) { .ecode = EVAL_ERR_NOT_A_NUM };
 
     return (EvalOutput) {
         .ecode = EVAL_OK, .result = result,

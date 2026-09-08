@@ -6,6 +6,7 @@ typedef enum {
     EVAL_ERR_UNEXP_CHAR,
     EVAL_ERR_INV_SYNTAX,
     EVAL_ERR_DIV_BY_ZERO,
+    EVAL_ERR_NOT_A_NUM,
 } EvalCode;
 
 typedef struct {
