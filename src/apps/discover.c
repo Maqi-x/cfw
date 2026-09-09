@@ -32,21 +32,21 @@ static const Section sections[] = {
     {
         .title = "Games",
         .apps = {
-            { APP_SNAKE, "assets/snake.png" },
+            { APP_SNAKE, "assets/icons/snake.png" },
             { 0 }, { 0 }, // TODO
         },
     },
     {
         .title = "Misc",
         .apps = {
-            { APP_CALCULATOR, "assets/calculator.png" },
+            { APP_CALCULATOR, "assets/icons/calculator.png" },
             { 0 }, { 0 }, // TODO
         },
     },
     {
         .title = "Demos",
-        .apps = {
-            { APP_SOUNDBOARD, "assets/soundboard.png" },
+        .apps ={
+            { APP_SOUNDBOARD, "assets/icons/soundboard.png" },
             { 0 }, { 0 }, // TODO
         },
     },

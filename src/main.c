@@ -161,7 +161,7 @@ static void RestartWebLoop(void *arg) {
     emscripten_set_main_loop(MainLoop, 0, 0);
 }
 static void CheckAndKickCompositor(float dt) {
-    static bool compositor_kicked = false;
+   static bool compositor_kicked = false;
     static int frame_counter = 0;
     if (compositor_kicked) return;
 
@@ -344,7 +344,7 @@ bool init() {
     cursor.pointer = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
     if (cursor.pointer == NULL) E(SDL_CreateSystemCursor);
 
-    githubIcon = LoadTexPNG("assets/github.png");
+    githubIcon = LoadTexPNG("assets/icons/github.png");
     if (githubIcon == NULL) E(SDL_LoadPNG);
 
     UpdateLayout();
