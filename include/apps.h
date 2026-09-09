@@ -7,7 +7,7 @@
 void InitApp(Window* win);
 void CleanupApp(Window* win);
 
-void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect);
+void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool HandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
 bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
 

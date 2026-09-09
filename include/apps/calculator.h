@@ -10,7 +10,7 @@
 void CalcAppInit(Window* win);
 void CalcAppCleanup(Window* win);
 
-void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect);
+void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
 bool CalcAppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
 

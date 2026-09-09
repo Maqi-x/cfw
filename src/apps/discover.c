@@ -125,10 +125,10 @@ void DiscoverAppInit(Window* win) {
     win->userData = state;
 }
 
-static void DrawAppIconAndName(SDL_FRect contectRect, AppEntry* entry) {
+static void DrawAppIconAndName(SDL_FRect contentRect, AppEntry* entry) {
     SDL_FRect irect = {
-        .x = contectRect.x + entry->rect.x,
-        .y = contectRect.y + entry->rect.y,
+        .x = contentRect.x + entry->rect.x,
+        .y = contentRect.y + entry->rect.y,
         .w = entry->rect.w,
         .h = entry->rect.h
     };
@@ -148,20 +148,20 @@ static void DrawAppIconAndName(SDL_FRect contectRect, AppEntry* entry) {
     TTF_DrawRendererText(entry->title, tx, ty);
 }
 
-void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
+void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
     assert(state != NULL);
 
     SDL_SetRenderDrawColor(renderer, BG_COLOR);
-    SDL_RenderFillRect(renderer, &contectRect);
+    SDL_RenderFillRect(renderer, &contentRect);
 
     for (uint c = 0; c < NUM_SECTIONS; ++c) {
         SectionState* sec = &state->sections[c];
-        TTF_DrawRendererText(sec->title, contectRect.x + sec->titlePos.x, contectRect.y + sec->titlePos.y);
+        TTF_DrawRendererText(sec->title, contentRect.x + sec->titlePos.x, contentRect.y + sec->titlePos.y);
 
         for (uint i = 0; i < APPS_PER_SECTION; ++i) {
             if (!sec->apps[i].hasApp) continue;
-            DrawAppIconAndName(contectRect, &sec->apps[i]);
+            DrawAppIconAndName(contentRect, &sec->apps[i]);
         }
     }
 }

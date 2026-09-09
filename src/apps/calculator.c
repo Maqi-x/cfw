@@ -364,26 +364,26 @@ static bool HandleKeyEvent(State* state, SDL_Keycode key, SDL_Keymod mod) {
     return false;
 }
 
-void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
+void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
 
     /// display ///
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderFillRect(renderer, &(SDL_FRect) {
-        .x = contectRect.x,
-        .y = contectRect.y,
-        .w = contectRect.w,
+        .x = contentRect.x,
+        .y = contentRect.y,
+        .w = contentRect.w,
         .h = DISPLAY_HEIGHT,
     });
 
     int tw = 0, th = 0;
     TTF_GetTextSize(state->text, &tw, &th);
 
-    float tx = contectRect.x + contectRect.w - DISPLAY_PAD_X - tw;
-    float ty = contectRect.y + (DISPLAY_HEIGHT - th) / 2.0f;
+    float tx = contentRect.x + contentRect.w - DISPLAY_PAD_X - tw;
+    float ty = contentRect.y + (DISPLAY_HEIGHT - th) / 2.0f;
 
-    tx = MIN(tx, contectRect.x + DISPLAY_PAD_X);
-    ty = MIN(ty, contectRect.y + DISPLAY_PAD_Y);
+    tx = MIN(tx, contentRect.x + DISPLAY_PAD_X);
+    ty = MIN(ty, contentRect.y + DISPLAY_PAD_Y);
 
     TTF_DrawRendererText(state->text, tx, ty);
 
@@ -391,8 +391,8 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
     for (int i = 0; i < NUM_BUTTONS; ++i) {
         Button* btn = &state->buttons[i];
         SDL_FRect rect = {
-            .x = contectRect.x + btn->rect.x,
-            .y = contectRect.y + btn->rect.y,
+            .x = contentRect.x + btn->rect.x,
+            .y = contentRect.y + btn->rect.y,
             .w = btn->rect.w, btn->rect.h,
         };
 

@@ -7,5 +7,5 @@
 void SoundboardAppInit(Window* win);
 void SoundboardAppCleanup(Window* win);
 
-void SoundboardAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect);
+void SoundboardAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool SoundboardAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);

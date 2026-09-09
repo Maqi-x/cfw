@@ -34,16 +34,16 @@ void CleanupApp(Window* win) {
     unreachable();
 }
 
-void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
+void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     switch (win->app) {
     case APP_DISCOVER:
-        return DiscoverAppRender(win, renderer, contectRect);
+        return DiscoverAppRender(win, renderer, contentRect);
     case APP_SNAKE:
-        return SnakeAppRender(win, renderer, contectRect);
+        return SnakeAppRender(win, renderer, contentRect);
     case APP_SOUNDBOARD:
-        return SoundboardAppRender(win, renderer, contectRect);
+        return SoundboardAppRender(win, renderer, contentRect);
     case APP_CALCULATOR:
-        return CalcAppRender(win, renderer, contectRect);
+        return CalcAppRender(win, renderer, contentRect);
     }
     unreachable();
 }

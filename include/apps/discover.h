@@ -22,6 +22,6 @@ typedef struct {
 void DiscoverAppInit(Window* win);
 void DiscoverAppCleanup(Window* win);
 
-void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect);
+void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
 bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint localMouse);

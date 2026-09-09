@@ -18,17 +18,17 @@ void SoundboardAppInit(Window* win) {
     win->userData = state;
 }
 
-void SoundboardAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
+void SoundboardAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
     assert(state != NULL);
 
     SDL_SetRenderDrawColor(renderer, 24, 24, 30, 255);
-    SDL_RenderFillRect(renderer, &contectRect);
+    SDL_RenderFillRect(renderer, &contentRect);
 
     TTF_DrawRendererText(
         state->hello,
-        contectRect.x + 10,
-        contectRect.y + 50);
+        contentRect.x + 10,
+        contentRect.y + 50);
 }
 
 bool SoundboardAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
