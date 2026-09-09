@@ -68,6 +68,8 @@ bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
         return DiscoverAppWantsPointerCursor(win, localMouse);
     case APP_CALCULATOR:
         return CalcAppWantsPointerCursor(win, localMouse);
+    case APP_SOUNDBOARD:
+        return SoundboardAppWantsPointerCursor(win, localMouse);
     default:
         return false;
     }
@@ -96,6 +98,10 @@ void GetAppSize(App app, float* w, float* h) {
     case APP_CALCULATOR:
         if (w) *w = CALC_WIDTH;
         if (h) *h = CALC_HEIGHT;
+        break;
+    case APP_SOUNDBOARD:
+        if (w) *w = SOUNDBOARD_WIDTH;
+        if (h) *h = SOUNDBOARD_HEIGHT;
         break;
     default:
         if (w) *w = 400.0f;

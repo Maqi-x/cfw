@@ -25,3 +25,11 @@ static inline SDL_Texture* LoadTexPNG(const char* file) {
     return tex;
 }
 
+static inline SDL_FRect OffsetRect(SDL_FRect content, SDL_FRect local) {
+    return (SDL_FRect) {
+        .x = content.x + local.x,
+        .y = content.y + local.y,
+        .w = local.w,
+        .h = local.h,
+    };
+}

@@ -126,12 +126,7 @@ void DiscoverAppInit(Window* win) {
 }
 
 static void DrawAppIconAndName(SDL_FRect contentRect, AppEntry* entry) {
-    SDL_FRect irect = {
-        .x = contentRect.x + entry->rect.x,
-        .y = contentRect.y + entry->rect.y,
-        .w = entry->rect.w,
-        .h = entry->rect.h
-    };
+    SDL_FRect irect = OffsetRect(contentRect, entry->rect);
 
     if (entry->hovered)
         SDL_SetTextureColorMod(entry->tex, 200, 200, 200);

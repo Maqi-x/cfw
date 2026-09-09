@@ -21,9 +21,16 @@ INCLUDE_PATHS := \
 	-Iinclude \
 	-Ideps/vector
 
+WARNINGS := \
+	-Werror=implicit-fallthrough
+
+COMMON_CFLAGS := \
+	$(INCLUDE_PATHS) \
+	$(WARNINGS)
+
 WEB_CFLAGS := \
 	-O2 -Wall \
-	$(INCLUDE_PATHS) \
+	$(COMMON_CFLAGS) \
 	-sUSE_SDL=3 \
 	-sUSE_SDL_TTF=3
 
@@ -39,7 +46,7 @@ WEB_EMFLAGS := \
 
 WEB_TARGET := $(BUILD_DIR)/index.html
 
-NATIVE_CFLAGS := -Og -Wall -g $(INCLUDE_PATHS)
+NATIVE_CFLAGS := -Og -Wall -g $(COMMON_CFLAGS)
 NATIVE_LDFLAGS := -lSDL3 -lSDL3_ttf -lm
 NATIVE_TARGET := $(BUILD_DIR)/app
 

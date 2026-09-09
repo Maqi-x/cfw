@@ -285,7 +285,7 @@ static void MainLoop() {
 }
 
 bool init() {
-    if (!SDL_Init(SDL_INIT_VIDEO))
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
         { E(SDL_Init); goto e0; }
     if (!TTF_Init())
         { E(TTF_Init); goto e1; }
