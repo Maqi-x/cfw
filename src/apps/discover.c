@@ -56,7 +56,7 @@ static const Section sections[] = {
 
 typedef struct {
     TTF_Text* title;
-    SDL_FPoint title_pos;
+    SDL_FPoint titlePos;
     AppEntry apps[APPS_PER_SECTION];
 } SectionState;
 
@@ -102,7 +102,7 @@ void DiscoverAppInit(Window* win) {
         // GCC is simply superior to Clang by any measure and I will never ever change my mind.
         float numSections = (float)(uint)NUM_SECTIONS;
 
-        state->sections[c].title_pos = (SDL_FPoint) {
+        state->sections[c].titlePos = (SDL_FPoint) {
             (DISCOVER_WIDTH - tw) / 2.0f,
             10.0f + c * (DISCOVER_HEIGHT / numSections)
         };
@@ -114,7 +114,7 @@ void DiscoverAppInit(Window* win) {
                 sections[c].apps[i].path,
                 (SDL_FRect){
                     .x = sx + i * TOTAL_ICON_SIZE,
-                    .y = state->sections[c].title_pos.y + HEADER_MARGIN,
+                    .y = state->sections[c].titlePos.y + HEADER_MARGIN,
                     .w = ICON_SIZE,
                     .h = ICON_SIZE,
                 }
@@ -125,10 +125,10 @@ void DiscoverAppInit(Window* win) {
     win->userData = state;
 }
 
-static void DrawAppIconAndName(SDL_FRect content_rect, AppEntry* entry) {
+static void DrawAppIconAndName(SDL_FRect contectRect, AppEntry* entry) {
     SDL_FRect irect = {
-        .x = content_rect.x + entry->rect.x,
-        .y = content_rect.y + entry->rect.y,
+        .x = contectRect.x + entry->rect.x,
+        .y = contectRect.y + entry->rect.y,
         .w = entry->rect.w,
         .h = entry->rect.h
     };
@@ -148,20 +148,20 @@ static void DrawAppIconAndName(SDL_FRect content_rect, AppEntry* entry) {
     TTF_DrawRendererText(entry->title, tx, ty);
 }
 
-void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
+void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
     State* state = win->userData;
     assert(state != NULL);
 
     SDL_SetRenderDrawColor(renderer, BG_COLOR);
-    SDL_RenderFillRect(renderer, &content_rect);
+    SDL_RenderFillRect(renderer, &contectRect);
 
     for (uint c = 0; c < NUM_SECTIONS; ++c) {
         SectionState* sec = &state->sections[c];
-        TTF_DrawRendererText(sec->title, content_rect.x + sec->title_pos.x, content_rect.y + sec->title_pos.y);
+        TTF_DrawRendererText(sec->title, contectRect.x + sec->titlePos.x, contectRect.y + sec->titlePos.y);
 
         for (uint i = 0; i < APPS_PER_SECTION; ++i) {
             if (!sec->apps[i].hasApp) continue;
-            DrawAppIconAndName(content_rect, &sec->apps[i]);
+            DrawAppIconAndName(contectRect, &sec->apps[i]);
         }
     }
 }
@@ -184,13 +184,13 @@ static bool HandleIconEvent(AppEntry* entry, const SDL_Event* event, Window* win
     return false;
 }
 
-bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse) {
+bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
     State* s = win->userData;
 
     bool anyHovered = false;
     for (uint c = 0; c < NUM_SECTIONS; ++c) {
         for (uint i = 0; i < APPS_PER_SECTION; ++i) {
-            if (HandleIconEvent(&s->sections[c].apps[i], event, win, local_mouse))
+            if (HandleIconEvent(&s->sections[c].apps[i], event, win, localMouse))
                 return true;
 
             if (s->sections[c].apps[i].hovered) {
@@ -202,13 +202,13 @@ bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
     return anyHovered;
 }
 
-bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
+bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
     State* s = win->userData;
 
     for (uint c = 0; c < NUM_SECTIONS; ++c) {
         for (uint i = 0; i < APPS_PER_SECTION; ++i) {
             AppEntry* entry = &s->sections[c].apps[i];
-            if (entry->hasApp && SDL_PointInRectFloat(&local_mouse, &entry->rect)) {
+            if (entry->hasApp && SDL_PointInRectFloat(&localMouse, &entry->rect)) {
                 return true;
             }
         }

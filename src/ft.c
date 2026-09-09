@@ -8,7 +8,7 @@
 // while isspace is a macro in almost all libc implementations,
 // the C standard also guarantees that it's a function, so you can
 // for example, do this:
-//   <some ugly type> function_ptr = isspace;
+//   <some ugly type> functionPointer = isspace;
 // we can use this trick and define our own version of the macro
 // because I always forget to cast to uchar which the standard macro
 // requires because it sucks. the entire c stdlib sucks. at least now
@@ -33,7 +33,7 @@ struct FT {
 
     Style style;
     const TextFragment* fragments;
-    usize fragment_count;
+    usize fragCount;
 
     Parts parts;
 
@@ -72,7 +72,7 @@ static TTF_Font* getfont(const FT* ft, TextKind kind) {
     unreachable();
 }
 
-static bool is_header(TextKind kind) {
+static bool IsHeader(TextKind kind) {
     return kind == TEXT_H1 || kind == TEXT_H2;
 }
 
@@ -104,8 +104,11 @@ static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, floa
     return true;
 }
 
-static bool FinishLine(FT* ft, float* x, float* y, uint* lineheight, bool paragraph_break) {
-    uint gap = paragraph_break ? ft->style.paragraph_gap : ft->style.line_gap;
+static bool FinishLine(FT* ft, float* x, float* y, uint* lineheight, bool paragraphBreak) {
+    uint gap =
+        paragraphBreak
+        ? ft->style.paragraphGap
+        : ft->style.lineGap;
 
     *x = 0;
     *y += *lineheight + gap;
@@ -142,11 +145,11 @@ static bool UpdateLayoutFragment(
     const char* p = frag->content;
 
     // we always want a new line BEFORE and AFTER a header
-    bool is_blocky = is_header(frag->kind);
-    if (is_blocky) {
+    bool isBlocky = IsHeader(frag->kind);
+    if (isBlocky) {
         if (*x > 0.0f || vlen(&ft->parts) > 0) {
             FinishLine(ft, x, y, lineheight, true);
-            *y += ft->style.heading_gap;
+            *y += ft->style.headingGap;
         }
     }
 
@@ -176,10 +179,9 @@ static bool UpdateLayoutFragment(
         }
     }
 
-    if (is_blocky) {
+    if (isBlocky) {
         FinishLine(ft, x, y, lineheight, true);
     }
-
     return true;
 }
 
@@ -189,7 +191,7 @@ bool UpdateLayout(FT* ft) {
 
     FreeParts(ft);
 
-    for (usize i = 0; i < ft->fragment_count; i++) {
+    for (usize i = 0; i < ft->fragCount; i++) {
         if (!UpdateLayoutFragment(ft, &ft->fragments[i], &x, &y, &lineheight)) {
             FreeParts(ft);
             return false;
@@ -212,9 +214,9 @@ FT* CreateFT(TTF_TextEngine* engine, const Style* style) {
         ft->style = *style;
     }
 
-    if (ft->style.line_gap == 0)      ft->style.line_gap = 4;
-    if (ft->style.paragraph_gap == 0) ft->style.paragraph_gap = 12;
-    if (ft->style.heading_gap == 0)   ft->style.heading_gap = 10;
+    if (ft->style.lineGap == 0)      ft->style.lineGap = 4;
+    if (ft->style.paragraphGap == 0) ft->style.paragraphGap = 12;
+    if (ft->style.headingGap == 0)   ft->style.headingGap = 10;
 
     return ft;
 }
@@ -234,7 +236,7 @@ bool FTSetWidth(FT* ft, uint width) {
 
 bool FTSetFragments(FT* ft, const TextFragment* fragments, usize count) {
     ft->fragments = fragments;
-    ft->fragment_count = count;
+    ft->fragCount = count;
     return UpdateLayout(ft);
 }
 
@@ -261,6 +263,6 @@ const char* FTGetLinkAt(const FT* ft, float x, float y) {
 
 void FTClear(FT* ft) {
     ft->fragments = NULL;
-    ft->fragment_count = 0;
+    ft->fragCount = 0;
     FreeParts(ft);
 }

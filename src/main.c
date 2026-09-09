@@ -124,14 +124,14 @@ static void DrawGamesDemosButton() {
 }
 
 static void DrawTopbar() {
-    uint title_w;
-    FTGetSize(title, &title_w, NULL);
+    uint titleWidth;
+    FTGetSize(title, &titleWidth, NULL);
 
     SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
     SDL_FRect topbar = { 0, 0, (float)w, (float)MAINTEXT_Y };
     SDL_RenderFillRect(renderer, &topbar);
 
-    FTDraw(title, ((float)w / 2.0f) - ((float)title_w / 2.0f), 10.0f);
+    FTDraw(title, ((float)w / 2.0f) - ((float)titleWidth / 2.0f), 10.0f);
 
     SDL_SetTextureColorMod(githubIcon,
         githubHovered ? 170 : 255,

@@ -34,40 +34,40 @@ void CleanupApp(Window* win) {
     unreachable();
 }
 
-void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
+void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
     switch (win->app) {
     case APP_DISCOVER:
-        return DiscoverAppRender(win, renderer, content_rect);
+        return DiscoverAppRender(win, renderer, contectRect);
     case APP_SNAKE:
-        return SnakeAppRender(win, renderer, content_rect);
+        return SnakeAppRender(win, renderer, contectRect);
     case APP_SOUNDBOARD:
-        return SoundboardAppRender(win, renderer, content_rect);
+        return SoundboardAppRender(win, renderer, contectRect);
     case APP_CALCULATOR:
-        return CalcAppRender(win, renderer, content_rect);
+        return CalcAppRender(win, renderer, contectRect);
     }
     unreachable();
 }
 
-bool HandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse) {
+bool HandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
     switch (win->app) {
     case APP_DISCOVER:
-        return DiscoverAppHandleEvent(win, event, local_mouse);
+        return DiscoverAppHandleEvent(win, event, localMouse);
     case APP_SNAKE:
-        return SnakeAppHandleEvent(win, event, local_mouse);
+        return SnakeAppHandleEvent(win, event, localMouse);
     case APP_SOUNDBOARD:
-        return SoundboardAppHandleEvent(win, event, local_mouse);
+        return SoundboardAppHandleEvent(win, event, localMouse);
     case APP_CALCULATOR:
-        return CalcAppHandleEvent(win, event, local_mouse);
+        return CalcAppHandleEvent(win, event, localMouse);
     }
     unreachable();
 }
 
-bool AppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
+bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
     switch (win->app) {
     case APP_DISCOVER:
-        return DiscoverAppWantsPointerCursor(win, local_mouse);
+        return DiscoverAppWantsPointerCursor(win, localMouse);
     case APP_CALCULATOR:
-        return CalcAppWantsPointerCursor(win, local_mouse);
+        return CalcAppWantsPointerCursor(win, localMouse);
     default:
         return false;
     }

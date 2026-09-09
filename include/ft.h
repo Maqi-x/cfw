@@ -45,9 +45,10 @@ typedef struct {
     SDL_Color link_color;
 
     uint width;
-    uint line_gap;
-    uint paragraph_gap;
-    uint heading_gap;
+
+    uint lineGap;
+    uint paragraphGap;
+    uint headingGap;
 } Style;
 
 FT* CreateFT(TTF_TextEngine* engine, const Style* style);

@@ -18,21 +18,21 @@ void SnakeAppInit(Window* win) {
     win->userData = state;
 }
 
-void SnakeAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
+void SnakeAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
     State* state = win->userData;
     assert(state != NULL);
 
     SDL_SetRenderDrawColor(renderer, 24, 24, 30, 255);
-    SDL_RenderFillRect(renderer, &content_rect);
+    SDL_RenderFillRect(renderer, &contectRect);
 
     TTF_DrawRendererText(
         state->hello,
-        content_rect.x + 100,
-        content_rect.y + 100);
+        contectRect.x + 100,
+        contectRect.y + 100);
 }
 
-bool SnakeAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse) {
-    (void)win, (void)event, (void)local_mouse;
+bool SnakeAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
+    (void)win, (void)event, (void)localMouse;
     return false;
 }
 

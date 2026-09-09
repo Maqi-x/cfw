@@ -364,26 +364,26 @@ static bool HandleKeyEvent(State* state, SDL_Keycode key, SDL_Keymod mod) {
     return false;
 }
 
-void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) {
+void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contectRect) {
     State* state = win->userData;
 
     /// display ///
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderFillRect(renderer, &(SDL_FRect) {
-        .x = content_rect.x,
-        .y = content_rect.y,
-        .w = content_rect.w,
+        .x = contectRect.x,
+        .y = contectRect.y,
+        .w = contectRect.w,
         .h = DISPLAY_HEIGHT,
     });
 
     int tw = 0, th = 0;
     TTF_GetTextSize(state->text, &tw, &th);
 
-    float tx = content_rect.x + content_rect.w - DISPLAY_PAD_X - tw;
-    float ty = content_rect.y + (DISPLAY_HEIGHT - th) / 2.0f;
+    float tx = contectRect.x + contectRect.w - DISPLAY_PAD_X - tw;
+    float ty = contectRect.y + (DISPLAY_HEIGHT - th) / 2.0f;
 
-    tx = MIN(tx, content_rect.x + DISPLAY_PAD_X);
-    ty = MIN(ty, content_rect.y + DISPLAY_PAD_Y);
+    tx = MIN(tx, contectRect.x + DISPLAY_PAD_X);
+    ty = MIN(ty, contectRect.y + DISPLAY_PAD_Y);
 
     TTF_DrawRendererText(state->text, tx, ty);
 
@@ -391,8 +391,8 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) 
     for (int i = 0; i < NUM_BUTTONS; ++i) {
         Button* btn = &state->buttons[i];
         SDL_FRect rect = {
-            .x = content_rect.x + btn->rect.x,
-            .y = content_rect.y + btn->rect.y,
+            .x = contectRect.x + btn->rect.x,
+            .y = contectRect.y + btn->rect.y,
             .w = btn->rect.w, btn->rect.h,
         };
 
@@ -418,14 +418,14 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect content_rect) 
     }
 }
 
-bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mouse) {
+bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
     State* state = win->userData;
 
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
-        state->hoveredButton = GetButtonAtPoint(state, local_mouse);
+        state->hoveredButton = GetButtonAtPoint(state, localMouse);
     } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
         if (event->button.button == SDL_BUTTON_LEFT) {
-            int btn = GetButtonAtPoint(state, local_mouse);
+            int btn = GetButtonAtPoint(state, localMouse);
             if (btn != NOHOVER) {
                 HandleInputSymbol(state, state->buttons[btn].label);
                 return true;
@@ -438,7 +438,7 @@ bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint local_mo
     return false;
 }
 
-bool CalcAppWantsPointerCursor(Window* win, SDL_FPoint local_mouse) {
+bool CalcAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
     return state->hoveredButton != NOHOVER;
 }
