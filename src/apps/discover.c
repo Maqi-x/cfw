@@ -40,7 +40,8 @@ static const Section sections[] = {
         .title = "Misc",
         .apps = {
             { APP_CALCULATOR, "assets/icons/calculator.png" },
-            { 0 }, { 0 }, // TODO
+            { APP_BRAINFUCK,  "assets/icons/brainfuck.png"  },
+            { 0 }, // TODO
         },
     },
     {

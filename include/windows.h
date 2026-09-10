@@ -11,9 +11,10 @@
 
 typedef enum {
     APP_DISCOVER,
-    APP_SNAKE,
-    APP_SOUNDBOARD,
     APP_CALCULATOR,
+    APP_SOUNDBOARD,
+    APP_BRAINFUCK,
+    APP_SNAKE,
 } App;
 
 typedef struct Window {
