@@ -9,7 +9,9 @@ void CleanupApp(Window* win);
 
 void RenderApp(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool HandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
+
 bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
+void ChangeAppFocus(Window* win, bool focused);
 
 const char* GetAppTitle(App app);
 void GetAppSize(App app, float* w, float* h);

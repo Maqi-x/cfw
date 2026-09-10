@@ -144,10 +144,15 @@ Window* WindowCreate(App app) {
     };
 
     win->isFocused = true;
+    ChangeAppFocus(win, true);
+
     WITER(other,
         // (win is still not added to the
         //  array so this does not affect it)
-        other->isFocused = false;
+        if (other->isFocused) {
+            other->isFocused = false;
+            ChangeAppFocus(other, false);
+        }
     );
 
     win->titleText = TTF_CreateText(tengine, f.bold, win->title, strlen(win->title));
@@ -215,7 +220,10 @@ void WindowDestroy(Window* win) {
     free(win);
 
     Window* top = WTOP();
-    if (top != NULL) top->isFocused = true;
+    if (top != NULL) {
+        top->isFocused = true;
+        ChangeAppFocus(top, true);
+    }
 }
 
 void WindowBringToFront(Window* win) {
@@ -229,9 +237,13 @@ void WindowBringToFront(Window* win) {
         windows[numWindows - 1] = win;
     }
 
-    WITER(w,
+    WITER(w, {
+        bool oldFocused = w->isFocused;
         w->isFocused = (w == win);
-    );
+        if (oldFocused != w->isFocused) {
+            ChangeAppFocus(w, w->isFocused);
+        }
+    });
 }
 
 void WindowFocus(Window* win) {

@@ -75,6 +75,10 @@ bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
     }
 }
 
+void ChangeAppFocus(Window* win, bool focused) {
+    (void)win, (void)focused;
+}
+
 const char* GetAppTitle(App app) {
     switch (app) {
     case APP_DISCOVER:
