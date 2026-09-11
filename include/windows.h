@@ -14,6 +14,7 @@ typedef enum {
     APP_CALCULATOR,
     APP_SOUNDBOARD,
     APP_BRAINFUCK,
+    APP_LSTORAGE,
     APP_SNAKE,
 } App;
 
@@ -41,7 +42,10 @@ void WindowDestroy(Window* win);
 void WindowBringToFront(Window* win);
 void WindowFocus(Window* win);
 
+SDL_FRect GetWindowContentRect(Window* window);
+
 void RenderWindows(SDL_Renderer* renderer);
 bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse);
 bool IsMouseOverWindow(SDL_FPoint mouse);
 bool WindowWantsPointerCursor(SDL_FPoint mouse);
+bool WindowWantsTextCursor(SDL_FPoint mouse);

@@ -11,7 +11,7 @@
 #define BG_COLOR   24, 24, 30, 255
 
 #define ICON_SIZE 85.0f
-#define ICON_PADDING 40.0f
+#define ICON_PADDING 60.0f
 
 #define TITLE_OFFSET 5.0f
 #define HEADER_MARGIN 55.0f
@@ -48,7 +48,8 @@ static const Section sections[] = {
         .title = "Demos",
         .apps ={
             { APP_SOUNDBOARD, "assets/icons/soundboard.png" },
-            { 0 }, { 0 }, // TODO
+            { APP_LSTORAGE,   "assets/icons/lstorage.png"   },
+            { 0 }, // TODO
         },
     },
 };

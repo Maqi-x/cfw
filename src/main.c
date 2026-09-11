@@ -6,18 +6,13 @@
 #include <fonts.h>
 #include <utils.h>
 #include <apps.h>
+#include <btn.h>
+
+#include <web.h>
 
 #include <stdbool.h>
 #include <stdlib.h>
 #include <tgmath.h>
-
-#ifdef __EMSCRIPTEN__
-    #define WEB true
-    #include <emscripten/html5.h>
-    #include <emscripten.h>
-#else
-    #define WEB false
-#endif
 
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
@@ -36,7 +31,8 @@ SDL_Renderer* renderer;
 
 struct {
     SDL_Cursor *arrow,
-               *pointer;
+               *pointer,
+               *text;
 } cursor;
 
 TTF_TextEngine* tengine;
@@ -45,8 +41,7 @@ FT *title, *body;
 SDL_Texture* githubIcon = NULL;
 bool githubHovered = false;
 
-TTF_Text* demosText = NULL;
-bool demosHovered = false;
+Button demosBtn;
 
 // It's ugly, but I have no idea how to do this without macros
 // If I define this as a function
@@ -87,40 +82,17 @@ static void UpdateScroll(float dt) {
     scroll.curr += (scroll.target - scroll.curr) * factor;
 }
 
-static SDL_FRect GetGamesDemosButtonRect() {
-    int tw = 0, th = 0;
-    TTF_GetTextSize(demosText, &tw, &th);
-
-    float bw = tw + 28.0f;
-    float bh = th + 12.0f;
-
-    return (SDL_FRect) {
-        .w = bw, .h = bh,
-        .x = w - MAINTEXT_X - bw,
-        .y = CONTENT_Y - scroll.curr,
-    };
+static void LayoutGamesDemosButton() {
+    if (demosBtn.text == NULL) return;
+    BtnFitToText(&demosBtn);
+    demosBtn.rect.x = (float)w - MAINTEXT_X - demosBtn.rect.w;
+    demosBtn.rect.y = (float)CONTENT_Y - scroll.curr;
 }
 
 static void DrawGamesDemosButton() {
-    if (demosText == NULL) return;
-    SDL_FRect btn = GetGamesDemosButtonRect();
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, demosHovered ? 25 : 0);
-    SDL_RenderFillRect(renderer, &btn);
-
-    if (demosHovered) {
-        SDL_SetRenderDrawColor(renderer, 186, 195, 207, 255);
-    } else {
-        SDL_SetRenderDrawColor(renderer, 225, 230, 237, 255);
-    }
-    SDL_RenderRect(renderer, &btn);
-
-    int tw = 0, th = 0;
-    TTF_GetTextSize(demosText, &tw, &th);
-
-    float tx = btn.x + (btn.w - tw) / 2.0f;
-    float ty = btn.y + (btn.h - th) / 2.0f;
-    TTF_DrawRendererText(demosText, tx, ty);
+    if (demosBtn.text == NULL) return;
+    LayoutGamesDemosButton();
+    BtnDraw(renderer, &demosBtn);
 }
 
 static void DrawTopbar() {
@@ -180,9 +152,9 @@ static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
     bool onGithubBtn = SDL_PointInRectFloat(&mouse, &GITHUB_RECT) && mouse.y <= (float)MAINTEXT_Y;
     githubHovered = onGithubBtn;
 
-    SDL_FRect btn = GetGamesDemosButtonRect();
-    bool onDemosBtn = SDL_PointInRectFloat(&mouse, &btn) && mouse.y > (float)MAINTEXT_Y && !IsMouseOverWindow(mouse);
-    demosHovered = onDemosBtn;
+    LayoutGamesDemosButton();
+    bool onDemosBtn = BtnContains(&demosBtn, mouse) && mouse.y > (float)MAINTEXT_Y && !IsMouseOverWindow(mouse);
+    demosBtn.hovered = onDemosBtn;
 
     float x = mouse.x - MAINTEXT_X;
     float y = mouse.y - CONTENT_Y + scroll.curr;
@@ -203,6 +175,8 @@ static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
     } else {
         if (WindowWantsPointerCursor(mouse) || onGithubBtn || onDemosBtn || url != NULL) {
             SDL_SetCursor(cursor.pointer);
+        } else if (WindowWantsTextCursor(mouse)) {
+            SDL_SetCursor(cursor.text);
         } else {
             SDL_SetCursor(cursor.arrow);
         }
@@ -268,9 +242,7 @@ static void MainLoop() {
     SDL_RenderPresent(renderer);
 
     if (!running) {
-        if (demosText != NULL) {
-            TTF_DestroyText(demosText);
-        }
+        BtnDestroy(&demosBtn);
         DeinitWindows();
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
@@ -316,9 +288,7 @@ bool init() {
 
     InitWindows();
 
-    demosText = TTF_CreateText(tengine, f.bold, "Games and demos", 15);
-    if (demosText == NULL) E(TTF_CreateText);
-    TTF_SetTextColor(demosText, 240, 240, 240, 255);
+    demosBtn = BtnCreate(f.bold, "Games and demos");
 
     Style style = {
         .normal = f.normal, .bold = f.bold, .italic = f.italic,
@@ -343,6 +313,9 @@ bool init() {
 
     cursor.pointer = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_POINTER);
     if (cursor.pointer == NULL) E(SDL_CreateSystemCursor);
+
+    cursor.text = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_TEXT);
+    if (cursor.text == NULL) E(SDL_CreateSystemCursor);
 
     githubIcon = LoadTexPNG("assets/icons/github.png");
     if (githubIcon == NULL) E(SDL_LoadPNG);

@@ -1,4 +1,12 @@
 // vendored https://github.com/libsdl-org/SDL_ttf/blob/main/examples/editbox.h
+// modifications:
+//
+//   const SDL_Event*
+//   cursor style
+//   selection color
+//
+//   (...some ai fixes to make
+//       the selection logic work)
 
 /*
   Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
@@ -41,6 +49,7 @@ typedef struct EditBox {
     bool highlighting;
     int highlight1;
     int highlight2;
+    SDL_FPoint mouse_down;
 
     /* IME composition */
     int composition_start;
@@ -81,5 +90,5 @@ extern void EditBox_Copy(EditBox *edit);
 extern void EditBox_Cut(EditBox *edit);
 extern void EditBox_Paste(EditBox *edit);
 extern void EditBox_Insert(EditBox *edit, const char *text);
-extern bool EditBox_HandleEvent(EditBox *edit, SDL_Event *event);
+extern bool EditBox_HandleEvent(EditBox *edit, const SDL_Event *event);
 

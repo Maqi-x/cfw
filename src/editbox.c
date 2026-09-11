@@ -1,4 +1,5 @@
 // vendored https://github.com/libsdl-org/SDL_ttf/blob/main/examples/editbox.c
+// modifications: const SDL_Event*; light caret; click vs drag selection; safer IME clear
 
 /*
   Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
@@ -14,6 +15,7 @@
 #include "editbox.h"
 
 #define CURSOR_BLINK_INTERVAL_MS    500
+#define CLICK_DRAG_THRESHOLD_PX  4.0f
 
 
 static void DrawText(EditBox *edit, TTF_Text *text, float x, float y)
@@ -67,15 +69,16 @@ static int UTF8ByteLength(const char *text, int num_codepoints)
 
 static void HandleComposition(EditBox *edit, const SDL_TextEditingEvent *event)
 {
-    EditBox_DeleteHighlight(edit);
+    int length = (int)SDL_strlen(event->text);
 
     if (edit->composition_length > 0) {
         TTF_DeleteTextString(edit->text, edit->composition_start, edit->composition_length);
         ResetComposition(edit);
     }
 
-    int length = (int)SDL_strlen(event->text);
+    /* Empty editing events (common on focus/click) must not delete a selection */
     if (length > 0) {
+        EditBox_DeleteHighlight(edit);
         edit->composition_start = edit->cursor;
         edit->composition_length = length;
         TTF_InsertTextString(edit->text, edit->composition_start, event->text, edit->composition_length);
@@ -147,7 +150,7 @@ static void DrawCompositionCursor(EditBox *edit)
             rect.y += edit->rect.y;
             rect.w = 1.0f;
 
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+            SDL_SetRenderDrawColor(renderer, 0xF0, 0xF0, 0xF0, 0xFF);
             SDL_RenderFillRect(renderer, &rect);
         }
     }
@@ -323,7 +326,7 @@ static void DrawCursor(EditBox *edit)
     }
 
     SDL_Renderer *renderer = edit->renderer;
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0xFF);
+    SDL_SetRenderDrawColor(renderer, 0xF0, 0xF0, 0xF0, 0xFF);
     SDL_RenderFillRect(renderer, &edit->cursor_rect);
 }
 
@@ -412,7 +415,7 @@ void EditBox_Draw(EditBox *edit)
         TTF_SubString **highlights = TTF_GetTextSubStringsForRange(edit->text, marker, length, NULL);
         if (highlights) {
             int i;
-            SDL_SetRenderDrawColor(renderer, 0xEE, 0xEE, 0x00, 0xFF);
+            SDL_SetRenderDrawColor(renderer, 0x46, 0x5A, 0x82, 0xFF);
             for (i = 0; highlights[i]; ++i) {
                 SDL_FRect rect;
                 SDL_RectToFRect(&highlights[i]->rect, &rect);
@@ -724,6 +727,7 @@ static bool HandleMouseDown(EditBox *edit, float x, float y)
     edit->highlighting = true;
     edit->highlight1 = edit->cursor;
     edit->highlight2 = -1;
+    edit->mouse_down = (SDL_FPoint){ x, y };
 
     return true;
 }
@@ -732,6 +736,12 @@ static bool HandleMouseMotion(EditBox *edit, float x, float y)
 {
     if (!edit->highlighting) {
         return false;
+    }
+
+    float dx = x - edit->mouse_down.x;
+    float dy = y - edit->mouse_down.y;
+    if ((dx * dx + dy * dy) < (CLICK_DRAG_THRESHOLD_PX * CLICK_DRAG_THRESHOLD_PX)) {
+        return true;
     }
 
     /* Set the highlight position */
@@ -751,13 +761,20 @@ static bool HandleMouseMotion(EditBox *edit, float x, float y)
 
 static bool HandleMouseUp(EditBox *edit, float x, float y)
 {
-    (void)x; (void)y;
-
     if (!edit->highlighting) {
         return false;
     }
 
     edit->highlighting = false;
+
+    float dx = x - edit->mouse_down.x;
+    float dy = y - edit->mouse_down.y;
+    if ((dx * dx + dy * dy) < (CLICK_DRAG_THRESHOLD_PX * CLICK_DRAG_THRESHOLD_PX)
+     || edit->highlight2 < 0
+     || edit->highlight1 == edit->highlight2) {
+        edit->highlight1 = -1;
+        edit->highlight2 = -1;
+    }
     return true;
 }
 
@@ -862,7 +879,7 @@ void EditBox_Insert(EditBox *edit, const char *text)
     SetCursorPosition(edit, (int)(edit->cursor + length));
 }
 
-bool EditBox_HandleEvent(EditBox *edit, SDL_Event *event)
+bool EditBox_HandleEvent(EditBox *edit, const SDL_Event *event)
 {
     if (!edit || !event) {
         return false;
@@ -977,14 +994,23 @@ bool EditBox_HandleEvent(EditBox *edit, SDL_Event *event)
         return true;
 
     case SDL_EVENT_TEXT_INPUT:
+        if (!edit->has_focus) {
+            break;
+        }
         EditBox_Insert(edit, event->text.text);
         return true;
 
     case SDL_EVENT_TEXT_EDITING:
+        if (!edit->has_focus) {
+            break;
+        }
         HandleComposition(edit, &event->edit);
         break;
 
     case SDL_EVENT_TEXT_EDITING_CANDIDATES:
+        if (!edit->has_focus) {
+            break;
+        }
         ClearCandidates(edit);
         SaveCandidates(edit, event);
         break;

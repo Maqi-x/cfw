@@ -250,6 +250,15 @@ void WindowFocus(Window* win) {
     WindowBringToFront(win);
 }
 
+SDL_FRect GetWindowContentRect(Window* window) {
+    return (SDL_FRect) {
+        .x = window->rect.x,
+        .y = window->rect.y + TITLEBAR_HEIGHT,
+        .w = window->rect.w,
+        .h = window->rect.h - TITLEBAR_HEIGHT,
+    };
+}
+
 void RenderWindows(SDL_Renderer* renderer) {
     float mx = 0.0f, my = 0.0f;
     SDL_GetMouseState(&mx, &my);
@@ -365,9 +374,15 @@ static bool HandleUpLMB(const SDL_Event* event, SDL_FPoint mouse) {
     });
 
     Window* top = WTOP();
-    if (top != NULL)
-        if (TryHandleAppEvent(top, event, mouse))
+    if (top != NULL) {
+        SDL_FRect contentRect = GetContentRect(top);
+        SDL_FPoint local = {
+            mouse.x - contentRect.x,
+            mouse.y - contentRect.y
+        };
+        if (HandleAppEvent(top, event, local))
             return true;
+    }
 
     if (wasDraggingBefore || IsMouseOverWindow(mouse)) {
         return true;
@@ -395,7 +410,10 @@ static bool HandleMouseMotion(const SDL_Event* event, SDL_FPoint mouse) {
 bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse) {
     if (numWindows == 0) return false;
 
-    if (event->type == SDL_EVENT_KEY_DOWN || event->type == SDL_EVENT_TEXT_INPUT) {
+    if (event->type == SDL_EVENT_KEY_DOWN
+     || event->type == SDL_EVENT_TEXT_INPUT
+     || event->type == SDL_EVENT_TEXT_EDITING
+     || event->type == SDL_EVENT_TEXT_EDITING_CANDIDATES) {
         Window* top = WTOP();
         if (top != NULL) {
             return HandleAppEvent(top, event, (SDL_FPoint) { 0.0f, 0.0f });
@@ -450,6 +468,23 @@ bool WindowWantsPointerCursor(SDL_FPoint mouse) {
                 SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
                 return AppWantsPointerCursor(win, local);
             }
+        }
+    });
+    return false;
+}
+
+bool WindowWantsTextCursor(SDL_FPoint mouse) {
+    if (numWindows == 0) return false;
+
+    WITER(win, {
+        SDL_FRect totalRect = GetTotalWindowRect(win);
+        if (SDL_PointInRectFloat(&mouse, &totalRect)) {
+            SDL_FRect contentRect = GetContentRect(win);
+            if (SDL_PointInRectFloat(&mouse, &contentRect)) {
+                SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
+                return AppWantsTextCursor(win, local);
+            }
+            return false;
         }
     });
     return false;
