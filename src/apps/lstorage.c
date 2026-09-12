@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define BG_COLOR   24, 24, 30, 255
-#define EDIT_BG    14, 14, 20, 255
+#define BG_COLOR   18,  18,  20,  255
+#define EDIT_BG    14,  14,  20,  255
 #define TEXT_COLOR 240, 240, 240, 255
 
 #define PAD     16.0f

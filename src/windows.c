@@ -10,7 +10,7 @@
 #include <string.h>
 #include <assert.h>
 
-#define TITLEBAR_COLOR_FOCUS   21, 21, 28, 255
+#define TITLEBAR_COLOR_FOCUS   14, 14, 15, 255
 #define TITLEBAR_COLOR_NOFOCUS 13, 13, 18, 255
 
 #define TITLE_COLOR_FOCUS   240, 240, 240, 255
@@ -23,7 +23,7 @@
 #define INFO_HOVER_COLOR  53, 130, 220, 255
 #define BTN_ICON_COLOR    240, 240, 240, 255
 
-#define INFO_BG_COLOR 24, 24, 30, 255
+#define INFO_BG_COLOR 18, 18, 20, 255
 #define INFO_PAD      16.0f
 
 #define SetColor(IS_FOCUSED, NAME)                        \

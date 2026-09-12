@@ -17,6 +17,8 @@
 #define E(F) \
     SDL_Log(#F " failed in " __FILE__ " at " STRINGIFY(__LINE__) ": %s\n", SDL_GetError())
 
+#define TOPBAR_COLOR 20, 20, 20, 255
+
 // TODO: maybe globals are not a good idea, but i guess it's fine for now
 int w, h;
 uint64_t lastTicks;
@@ -87,7 +89,7 @@ static void DrawTopbar() {
     uint titleWidth;
     FTGetSize(title, &titleWidth, NULL);
 
-    SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
+    SDL_SetRenderDrawColor(renderer, TOPBAR_COLOR);
     SDL_FRect topbar = { 0, 0, (float)w, (float)MAINTEXT_Y };
     SDL_RenderFillRect(renderer, &topbar);
 

@@ -22,7 +22,7 @@ void SnakeAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) 
     State* state = win->userData;
     assert(state != NULL);
 
-    SDL_SetRenderDrawColor(renderer, 24, 24, 30, 255);
+    SDL_SetRenderDrawColor(renderer, 18, 18, 20, 255);
     SDL_RenderFillRect(renderer, &contentRect);
 
     TTF_DrawRendererText(
