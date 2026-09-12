@@ -1,9 +1,4 @@
 #include <apps/brainfuck.h>
-#include <fonts.h>
-#include <defs.h>
-
-#include <stdlib.h>
-#include <assert.h>
 
 #include <editbox.h>
 #include <fonts.h>
@@ -11,10 +6,9 @@
 #include <utils.h>
 #include <btn.h>
 
-#include <web.h>
-
 #include <stdlib.h>
 #include <assert.h>
+#include <tgmath.h>
 
 #define BG_COLOR   22,  22,  30,  255
 #define EDIT_BG    14,  14,  20,  255
@@ -26,9 +20,17 @@
 #define NUM_BTNS 2
 #define BTN_NONE NUM_BTNS
 
+#define AVAILABLE_WIDTH (BF_WIDTH - 3.0f * PAD)
+#define INPUT_WIDTH     (AVAILABLE_WIDTH * 0.60f)
+#define OUTPUT_WIDTH    (AVAILABLE_WIDTH * 0.40f)
+#define OUTPUT_X        (INPUT_WIDTH + 2 * PAD)
+
 typedef struct {
     EditBox* edit;
     SDL_FRect editRect;
+
+    SDL_FRect outputRect;
+    TTF_Text* outputText;
 
     Button runBtn;
     Button clearBtn;
@@ -42,7 +44,7 @@ static void LayoutButtons(State* state) {
     SDL_FRect* loadRect = &state->clearBtn.rect;
 
     float totalWidth = saveRect->w + BTN_GAP + loadRect->w;
-    float sx = (BF_WIDTH - totalWidth) / 2.0f;
+    float sx = BF_WIDTH - PAD - totalWidth;
     float sy = BF_HEIGHT - PAD - saveRect->h;
 
     saveRect->x = sx;
@@ -77,19 +79,36 @@ void BfAppInit(Window* win) {
     state->clearBtn = BtnCreateBg(f.bold, "Clear", BG_COLOR);
     LayoutButtons(state);
 
-    float editBottom = state->runBtn.rect.y - PAD;
     state->editRect = (SDL_FRect) {
         .x = PAD,
         .y = PAD,
-        .w = BF_WIDTH - 2 * PAD,
-        .h = editBottom - PAD * 10,
+        .w = INPUT_WIDTH,
+        .h = BF_HEIGHT - 2.0f * PAD,
     };
 
-    SDL_FRect editAbs = GetWindowContentRect(win);
+    state->outputRect = (SDL_FRect) {
+        .x = OUTPUT_X,
+        .y = PAD,
+        .w = OUTPUT_WIDTH,
+        .h = state->runBtn.rect.y - 2.0f * PAD,
+    };
 
+    state->outputText = TTF_CreateText(tengine, f.normal, "PLACEHOLDER", 0);
+    assert(state->outputText != NULL);
+
+    TTF_SetTextColor(state->outputText, 150, 150, 150, 255);
+    TTF_SetTextWrapWidth(state->outputText, state->outputRect.w);
+
+    SDL_FRect editAbs = OffsetRect(GetWindowContentRect(win), state->editRect);
+
+    // TODO: monospace font
     state->edit = EditBox_Create(window, renderer, tengine, f.normal, &editAbs);
     assert(state->edit != NULL);
 
+    // for whatever reason we actually need to do this manually...
+    TTF_SetTextWrapWidth(state->edit->text, floor(state->editRect.w));
+
+    TTF_SetTextString(state->edit->text, "[ Put brainfuck code here... ]", 0);
     TTF_SetTextColor(state->edit->text, TEXT_COLOR);
 
     win->userData = state;
@@ -99,6 +118,7 @@ void BfAppCleanup(Window* win) {
     State* state = win->userData;
     assert(state != NULL);
 
+    TTF_DestroyText(state->outputText);
     EditBox_Destroy(state->edit);
     BtnDestroy(&state->runBtn);
     BtnDestroy(&state->clearBtn);
@@ -116,6 +136,12 @@ void BfAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
 
     SyncEditBoxLocation(win, state);
     EditBox_Draw(state->edit);
+
+    SDL_FRect absOutputRect = OffsetRect(contentRect, state->outputRect);
+    SDL_SetRenderDrawColor(renderer, EDIT_BG);
+    SDL_RenderFillRect(renderer, &absOutputRect);
+
+    TTF_DrawRendererText(state->outputText, absOutputRect.x + 8.0f, absOutputRect.y + 8.0f);
 
     BtnDrawOffset(renderer, &state->runBtn, contentRect);
     BtnDrawOffset(renderer, &state->clearBtn, contentRect);
