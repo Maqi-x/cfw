@@ -33,3 +33,18 @@ static inline SDL_FRect OffsetRect(SDL_FRect content, SDL_FRect local) {
         .h = local.h,
     };
 }
+
+static inline Uint8 BrighterE(Uint8 element) {
+    return MIN(element + 30, 255);
+}
+
+static inline Uint8 MoreBrighterE(Uint8 element) {
+    return MIN(element + 38, 255);
+}
+
+static inline SDL_Color Brighter(SDL_Color bg) {
+    bg.r = BrighterE(bg.r);
+    bg.g = BrighterE(bg.g);
+    bg.b = BrighterE(bg.b);
+    return bg;
+}

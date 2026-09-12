@@ -129,13 +129,6 @@ void CalcAppCleanup(Window* win) {
     win->userData = NULL;
 }
 
-static SDL_Color Brighter(SDL_Color bg) {
-    bg.r = MIN(bg.r + 30, 255);
-    bg.g = MIN(bg.g + 30, 255);
-    bg.b = MIN(bg.b + 30, 255);
-    return bg;
-}
-
 static bool FitsDisplay(TTF_Font* font, const char* text, usize len) {
     int w, h;
     TTF_GetStringSize(font, text, len, &w, &h);

@@ -12,7 +12,9 @@ typedef struct {
     SDL_Color bg;
     bool hasBg;
 
-    bool hovered;
+    bool isHovered;
+    bool isClicked;
+    bool wasClicked;
 } Button;
 
 Button BtnCreate(TTF_Font* font, const char* label);
@@ -25,4 +27,7 @@ void BtnDestroy(Button* btn);
 void BtnFitToText(Button* btn);
 void BtnDraw(SDL_Renderer* renderer, const Button* btn);
 void BtnDrawOffset(SDL_Renderer* renderer, const Button* btn, SDL_FRect origin);
+
+bool BtnJustClicked(const Button* btn);
 bool BtnContains(const Button* btn, SDL_FPoint point);
+void BtnHandleEvent(Button* btn, const SDL_Event* event, SDL_FPoint mouse);

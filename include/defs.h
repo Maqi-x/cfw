@@ -17,6 +17,8 @@ typedef unsigned char uchar;
     #define unreachable() __builtin_unreachable()
 #endif
 
+#define fallthrough __attribute__((fallthrough))
+
 typedef struct TTF_TextEngine TTF_TextEngine;
 typedef struct SDL_Renderer SDL_Renderer;
 typedef struct SDL_Window SDL_Window;

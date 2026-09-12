@@ -21,11 +21,6 @@
 #define NUM_BTNS 2
 #define BTN_NONE NUM_BTNS
 
-typedef enum {
-    BTN_SAVE = 0,
-    BTN_LOAD = 1,
-} BtnIndex;
-
 typedef struct {
     EditBox* edit;
     SDL_FRect editRect;
@@ -88,12 +83,6 @@ static bool Load(State* state) {
     // TODO: also show error message
     return false;
 #endif
-}
-
-static BtnIndex ButtonAtPoint(const State* state, SDL_FPoint localMouse) {
-    if (BtnContains(&state->saveBtn, localMouse)) return BTN_SAVE;
-    if (BtnContains(&state->loadBtn, localMouse)) return BTN_LOAD;
-    return BTN_NONE;
 }
 
 static bool PointInEditRect(const State* state, SDL_FPoint localMouse) {
@@ -159,24 +148,11 @@ bool LStorageAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
     State* state = win->userData;
     assert(state != NULL);
 
-    if (event->type == SDL_EVENT_MOUSE_MOTION) {
-        state->saveBtn.hovered = BtnContains(&state->saveBtn, localMouse);
-        state->loadBtn.hovered = BtnContains(&state->loadBtn, localMouse);
-    }
+    BtnHandleEvent(&state->saveBtn, event, localMouse);
+    BtnHandleEvent(&state->loadBtn, event, localMouse);
 
-    bool click = event->type == SDL_EVENT_MOUSE_BUTTON_DOWN && event->button.button == SDL_BUTTON_LEFT;
-    if (click) {
-        BtnIndex hit = ButtonAtPoint(state, localMouse);
-        if (hit != BTN_NONE) {
-            EditBox_SetFocus(state->edit, false);
-
-            switch (hit) {
-            case BTN_SAVE: Save(state); return true;
-            case BTN_LOAD: Load(state); return true;
-            default:       unreachable();
-            }
-        }
-    }
+    if (BtnJustClicked(&state->saveBtn)) Save(state);
+    if (BtnJustClicked(&state->loadBtn)) Load(state);
 
     return EditBox_HandleEvent(state->edit, event);
 }
@@ -184,14 +160,15 @@ bool LStorageAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
 bool LStorageAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
     assert(state != NULL);
-    return ButtonAtPoint(state, localMouse) != BTN_NONE;
+
+    return state->saveBtn.isHovered || state->loadBtn.isHovered;
 }
 
 bool LStorageAppWantsTextCursor(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
     assert(state != NULL);
 
-    return ButtonAtPoint(state, localMouse) == BTN_NONE
+    return (!state->saveBtn.isHovered && !state->loadBtn.isHovered)
         && PointInEditRect(state, localMouse);
 }
 
@@ -201,7 +178,7 @@ void LStorageAppChangeFocus(Window* win, bool focused) {
 
     if (!focused) {
         EditBox_SetFocus(state->edit, false);
-        state->saveBtn.hovered = false;
-        state->loadBtn.hovered = false;
+        state->saveBtn.isHovered = false;
+        state->loadBtn.isHovered = false;
     }
 }

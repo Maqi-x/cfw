@@ -153,8 +153,10 @@ static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
     githubHovered = onGithubBtn;
 
     LayoutGamesDemosButton();
+
+    BtnHandleEvent(&demosBtn, event, mouse);
     bool onDemosBtn = BtnContains(&demosBtn, mouse) && mouse.y > (float)MAINTEXT_Y && !IsMouseOverWindow(mouse);
-    demosBtn.hovered = onDemosBtn;
+    demosBtn.isHovered = onDemosBtn;
 
     float x = mouse.x - MAINTEXT_X;
     float y = mouse.y - CONTENT_Y + scroll.curr;
@@ -218,13 +220,20 @@ static void MainLoop() {
                 continue;
             }
 
-            if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+            switch (event.type) {
+            case SDL_EVENT_MOUSE_WHEEL:
                 scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
                 EnsureScrollInBounds();
-            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                break;
+
+            case SDL_EVENT_MOUSE_BUTTON_DOWN:
+            case SDL_EVENT_MOUSE_BUTTON_UP:
+            case SDL_EVENT_MOUSE_MOTION:
                 HandleMouseEvents(&event, mouse);
-            } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
-                HandleMouseEvents(&event, mouse);
+                break;
+
+            default:
+                break;
             }
         }
     }
