@@ -60,14 +60,16 @@ static TTF_Font* getfont(const FT* ft, TextKind kind) {
     switch (kind) {
     case TEXT_NORMAL:
         return ft->style.normal;
-    case TEXT_H1:
-        return ft->style.h1;
-    case TEXT_H2:
-        return ft->style.h2;
     case TEXT_BOLD:
         return ft->style.bold;
     case TEXT_ITALIC:
         return ft->style.italic;
+    case TEXT_H1:
+        return ft->style.h1;
+    case TEXT_H2:
+        return ft->style.h2;
+    case TEXT_CODE:
+        return ft->style.code;
     }
     unreachable();
 }
@@ -83,7 +85,7 @@ static bool AppendPart(FT* ft, TTF_Font* font, const char* text, usize len, floa
     TTF_Text* tt = TTF_CreateText(ft->engine, font, text, len);
     if (tt == NULL) return false;
 
-    SDL_Color color = (href != NULL) ? ft->style.link_color : ft->style.text_color;
+    SDL_Color color = (href != NULL) ? ft->style.linkColor : ft->style.textColor;
     TTF_SetTextColor(tt, color.r, color.g, color.b, color.a);
 
     int w, h;

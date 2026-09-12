@@ -8,7 +8,8 @@ typedef struct {
         *bold,
         *italic,
         *h1,
-        *h2;
+        *h2,
+        *code;
 } Fonts;
 
 extern Fonts f;

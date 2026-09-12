@@ -3,16 +3,27 @@
 
 Fonts f;
 
+typedef enum {
+    NORMAL,
+    ITALIC,
+    MONO,
+} FontKind;
+
 typedef struct {
     TTF_Font** out;
-    bool italic;
+    FontKind kind;
 
     uint size;
     TTF_FontStyleFlags style;
 } FontSpec;
 
 static const char* GetPath(const FontSpec* spec) {
-    return spec->italic ? "assets/nunito/NunitoSans-Italic.ttf" : "assets/nunito/NunitoSans.ttf";
+    switch (spec->kind) {
+    case NORMAL: return "assets/fonts/nunito/NunitoSans.ttf";
+    case ITALIC: return "assets/fonts/nunito/NunitoSans-Italic.ttf";
+    case MONO:   return "assets/fonts/JetBrainsMono-Thin.ttf";
+    }
+    unreachable();
 }
 
 static bool LoadFont(TTF_Font** out, const FontSpec* spec) {
@@ -44,11 +55,12 @@ void UnloadFonts() {
 
 bool LoadFonts() {
     const FontSpec fonts[] = {
-        { .out = &f.normal, .italic = false, .size = 23, .style = 0              },
-        { .out = &f.bold,   .italic = false, .size = 23, .style = TTF_STYLE_BOLD },
-        { .out = &f.italic, .italic = true,  .size = 23, .style = 0              },
-        { .out = &f.h1,     .italic = false, .size = 34, .style = TTF_STYLE_BOLD },
-        { .out = &f.h2,     .italic = false, .size = 28, .style = TTF_STYLE_BOLD },
+        { .out = &f.normal, .kind = NORMAL, .size = 23, .style = 0              },
+        { .out = &f.bold,   .kind = NORMAL, .size = 23, .style = TTF_STYLE_BOLD },
+        { .out = &f.italic, .kind = ITALIC, .size = 23, .style = 0              },
+        { .out = &f.h1,     .kind = NORMAL, .size = 34, .style = TTF_STYLE_BOLD },
+        { .out = &f.h2,     .kind = NORMAL, .size = 28, .style = TTF_STYLE_BOLD },
+        { .out = &f.code,   .kind = MONO,   .size = 23, .style = 0              },
     };
 
     for (usize i = 0; i < sizeof(fonts) / sizeof(FontSpec); ++i) {

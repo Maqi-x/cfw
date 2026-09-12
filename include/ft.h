@@ -8,12 +8,13 @@
 
 typedef enum {
     TEXT_NORMAL,
+    TEXT_BOLD,
+    TEXT_ITALIC,
 
     TEXT_H1,
     TEXT_H2,
 
-    TEXT_BOLD,
-    TEXT_ITALIC,
+    TEXT_CODE,
 } TextKind;
 
 typedef struct {
@@ -27,9 +28,7 @@ typedef struct {
 #define T_ITALIC(S, ...) ((TextFragment) { .kind = TEXT_ITALIC, .content = (S), __VA_ARGS__ })
 #define T_H1(S, ...)     ((TextFragment) { .kind = TEXT_H1,     .content = (S), __VA_ARGS__ })
 #define T_H2(S, ...)     ((TextFragment) { .kind = TEXT_H2,     .content = (S), __VA_ARGS__ })
-
-// TODO: monospace font etc.
-#define T_CODE T_ITALIC
+#define T_CODE(S, ...)   ((TextFragment) { .kind = TEXT_CODE,   .content = (S), __VA_ARGS__ })
 
 typedef struct FT FT;
 
@@ -41,8 +40,10 @@ typedef struct {
     TTF_Font* h1;
     TTF_Font* h2;
 
-    SDL_Color text_color;
-    SDL_Color link_color;
+    TTF_Font* code;
+
+    SDL_Color textColor;
+    SDL_Color linkColor;
 
     uint width;
 

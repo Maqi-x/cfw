@@ -93,7 +93,7 @@ void BfAppInit(Window* win) {
         .h = state->runBtn.rect.y - 2.0f * PAD,
     };
 
-    state->outputText = TTF_CreateText(tengine, f.normal, "PLACEHOLDER", 0);
+    state->outputText = TTF_CreateText(tengine, f.code, "PLACEHOLDER", 0);
     assert(state->outputText != NULL);
 
     TTF_SetTextColor(state->outputText, 150, 150, 150, 255);
@@ -101,8 +101,7 @@ void BfAppInit(Window* win) {
 
     SDL_FRect editAbs = OffsetRect(GetWindowContentRect(win), state->editRect);
 
-    // TODO: monospace font
-    state->edit = EditBox_Create(window, renderer, tengine, f.normal, &editAbs);
+    state->edit = EditBox_Create(window, renderer, tengine, f.code, &editAbs);
     assert(state->edit != NULL);
 
     // for whatever reason we actually need to do this manually...

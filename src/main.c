@@ -301,8 +301,8 @@ bool init() {
 
     Style style = {
         .normal = f.normal, .bold = f.bold, .italic = f.italic,
-        .text_color = text_color, .link_color = link_color,
-        .h1 = f.h1, .h2 = f.h2,
+        .textColor = textColor, .linkColor = linkColor,
+        .h1 = f.h1, .h2 = f.h2, .code = f.code,
     };
 
     title = CreateFT(tengine, &style);

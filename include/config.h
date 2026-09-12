@@ -52,8 +52,8 @@ static const TextFragment tDescription[] = {
 };
 
 static const SDL_Color
-    text_color = { 255, 255, 255, 255 },
-    link_color = { 53,  163, 219, 255 };
+    textColor = { 255, 255, 255, 255 },
+    linkColor = { 53,  163, 219, 255 };
 
 #define MAINTEXT_X 40
 #define MAINTEXT_Y 60
