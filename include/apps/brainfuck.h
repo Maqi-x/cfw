@@ -13,6 +13,5 @@ void BfAppCleanup(Window* win);
 void BfAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool BfAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
 
-bool BfAppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
-bool BfAppWantsTextCursor(Window* win, SDL_FPoint localMouse);
 void BfAppChangeFocus(Window* win, bool focused);
+CursorKind BfAppGetCursorKind(Window* win, SDL_FPoint localMouse);

@@ -159,19 +159,17 @@ bool BfAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse
     return EditBox_HandleEvent(state->edit, event);
 }
 
-bool BfAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
+CursorKind BfAppGetCursorKind(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
     assert(state != NULL);
 
-    return state->runBtn.isHovered || state->clearBtn.isHovered;
-}
+    if (state->runBtn.isHovered || state->clearBtn.isHovered)
+        return CPOINTER;
 
-bool BfAppWantsTextCursor(Window* win, SDL_FPoint localMouse) {
-    State* state = win->userData;
-    assert(state != NULL);
+    if (PointInEditRect(state, localMouse))
+        return CTEXT;
 
-    return (!state->runBtn.isHovered && !state->clearBtn.isHovered)
-        && PointInEditRect(state, localMouse);
+    return CARROW;
 }
 
 void BfAppChangeFocus(Window* win, bool focused) {

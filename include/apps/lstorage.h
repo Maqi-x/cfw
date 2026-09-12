@@ -12,6 +12,6 @@ void LStorageAppCleanup(Window* win);
 
 void LStorageAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool LStorageAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
-bool LStorageAppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
-bool LStorageAppWantsTextCursor(Window* win, SDL_FPoint localMouse);
+
 void LStorageAppChangeFocus(Window* win, bool focused);
+CursorKind LStorageAppGetCursorKind(Window* win, SDL_FPoint localMouse);

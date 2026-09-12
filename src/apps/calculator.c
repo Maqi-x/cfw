@@ -359,6 +359,7 @@ static bool HandleKeyEvent(State* state, SDL_Keycode key, SDL_Keymod mod) {
 
 void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
+    assert(state != NULL);
 
     /// display ///
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -413,6 +414,7 @@ void CalcAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
 
 bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) {
     State* state = win->userData;
+    assert(state != NULL);
 
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
         state->hoveredButton = GetButtonAtPoint(state, localMouse);
@@ -431,7 +433,12 @@ bool CalcAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMou
     return false;
 }
 
-bool CalcAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
+CursorKind CalcAppGetCursorKind(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
-    return state->hoveredButton != NOHOVER;
+    assert(state != NULL);
+
+    return
+        state->hoveredButton != NOHOVER
+            ? CPOINTER
+            : CARROW;
 }

@@ -199,19 +199,19 @@ bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint loca
     return anyHovered;
 }
 
-bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
+CursorKind DiscoverAppGetCursorKind(Window* win, SDL_FPoint localMouse) {
     State* s = win->userData;
 
     for (uint c = 0; c < NUM_SECTIONS; ++c) {
         for (uint i = 0; i < APPS_PER_SECTION; ++i) {
             AppEntry* entry = &s->sections[c].apps[i];
             if (entry->hasApp && SDL_PointInRectFloat(&localMouse, &entry->rect)) {
-                return true;
+                return CPOINTER;
             }
         }
     }
 
-    return false;
+    return CARROW;
 }
 
 void DiscoverAppCleanup(Window* win) {

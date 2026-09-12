@@ -406,8 +406,12 @@ bool SoundboardAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint lo
     return false;
 }
 
-bool SoundboardAppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
+CursorKind SoundboardAppGetCursorKind(Window* win, SDL_FPoint localMouse) {
     State* state = win->userData;
     assert(state != NULL);
-    return SoundAtPoint(state, localMouse) != NOHOVER;
+
+    return
+        SoundAtPoint(state, localMouse) != NOHOVER
+            ? CPOINTER
+            : CARROW;
 }

@@ -175,12 +175,14 @@ static void HandleMouseEvents(SDL_Event* event, SDL_FPoint mouse) {
         if (url == NULL) return;
         (void)SDL_OpenURL(url);
     } else {
-        if (WindowWantsPointerCursor(mouse) || onGithubBtn || onDemosBtn || url != NULL) {
-            SDL_SetCursor(cursor.pointer);
-        } else if (WindowWantsTextCursor(mouse)) {
-            SDL_SetCursor(cursor.text);
-        } else {
-            SDL_SetCursor(cursor.arrow);
+        CursorKind ck = WindowsGetCursorKind(mouse);
+        if (onGithubBtn || onDemosBtn || url != NULL)
+            ck = CPOINTER;
+
+        switch (ck) {
+        case CARROW:   SDL_SetCursor(cursor.arrow);   break;
+        case CPOINTER: SDL_SetCursor(cursor.pointer); break;
+        case CTEXT:    SDL_SetCursor(cursor.text);    break;
         }
     }
 }

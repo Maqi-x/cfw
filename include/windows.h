@@ -46,6 +46,6 @@ SDL_FRect GetWindowContentRect(Window* window);
 
 void RenderWindows(SDL_Renderer* renderer);
 bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse);
+
 bool IsMouseOverWindow(SDL_FPoint mouse);
-bool WindowWantsPointerCursor(SDL_FPoint mouse);
-bool WindowWantsTextCursor(SDL_FPoint mouse);
+CursorKind WindowsGetCursorKind(SDL_FPoint mouse);

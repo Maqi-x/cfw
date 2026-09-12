@@ -5,6 +5,12 @@ typedef size_t usize;
 typedef unsigned int uint;
 typedef unsigned char uchar;
 
+typedef enum {
+    CARROW,
+    CTEXT,
+    CPOINTER,
+} CursorKind;
+
 #define _STRINGIFY(x) #x
 #define STRINGIFY(x) _STRINGIFY(x)
 

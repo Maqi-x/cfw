@@ -80,31 +80,20 @@ bool HandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse) 
     unreachable();
 }
 
-bool AppWantsPointerCursor(Window* win, SDL_FPoint localMouse) {
+CursorKind AppGetCursorKind(Window* win, SDL_FPoint localMouse) {
     switch (win->app) {
     case APP_DISCOVER:
-        return DiscoverAppWantsPointerCursor(win, localMouse);
+        return DiscoverAppGetCursorKind(win, localMouse);
     case APP_CALCULATOR:
-        return CalcAppWantsPointerCursor(win, localMouse);
+        return CalcAppGetCursorKind(win, localMouse);
     case APP_SOUNDBOARD:
-        return SoundboardAppWantsPointerCursor(win, localMouse);
+        return SoundboardAppGetCursorKind(win, localMouse);
     case APP_BRAINFUCK:
-        return BfAppWantsPointerCursor(win, localMouse);
+        return BfAppGetCursorKind(win, localMouse);
     case APP_LSTORAGE:
-        return LStorageAppWantsPointerCursor(win, localMouse);
+        return LStorageAppGetCursorKind(win, localMouse);
     default:
-        return false;
-    }
-}
-
-bool AppWantsTextCursor(Window* win, SDL_FPoint localMouse) {
-    switch (win->app) {
-    case APP_LSTORAGE:
-        return LStorageAppWantsTextCursor(win, localMouse);
-    case APP_BRAINFUCK:
-        return BfAppWantsTextCursor(win, localMouse);
-    default:
-        return false;
+        return CARROW;
     }
 }
 

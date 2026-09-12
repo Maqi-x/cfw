@@ -454,38 +454,27 @@ bool IsMouseOverWindow(SDL_FPoint mouse) {
     return false;
 }
 
-bool WindowWantsPointerCursor(SDL_FPoint mouse) {
-    if (numWindows == 0) return false;
+CursorKind WindowsGetCursorKind(SDL_FPoint mouse) {
+    if (numWindows == 0) return CARROW;
 
-    WITER(win, {
+    for (int i = numWindows - 1; i >= 0; --i) {
+        Window* win = windows[i];
+
         SDL_FRect totalRect = GetTotalWindowRect(win);
         if (SDL_PointInRectFloat(&mouse, &totalRect)) {
             SDL_FRect closeRect = GetCloseBtnRect(win);
-            if (SDL_PointInRectFloat(&mouse, &closeRect)) return true;
+            if (SDL_PointInRectFloat(&mouse, &closeRect))
+                return CPOINTER;
 
             SDL_FRect contentRect = GetContentRect(win);
             if (SDL_PointInRectFloat(&mouse, &contentRect)) {
                 SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
-                return AppWantsPointerCursor(win, local);
+                return AppGetCursorKind(win, local);
             }
-        }
-    });
-    return false;
-}
 
-bool WindowWantsTextCursor(SDL_FPoint mouse) {
-    if (numWindows == 0) return false;
-
-    WITER(win, {
-        SDL_FRect totalRect = GetTotalWindowRect(win);
-        if (SDL_PointInRectFloat(&mouse, &totalRect)) {
-            SDL_FRect contentRect = GetContentRect(win);
-            if (SDL_PointInRectFloat(&mouse, &contentRect)) {
-                SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
-                return AppWantsTextCursor(win, local);
-            }
-            return false;
+            return CARROW;
         }
-    });
-    return false;
+    };
+
+    return CARROW;
 }

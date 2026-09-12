@@ -24,4 +24,5 @@ void DiscoverAppCleanup(Window* win);
 
 void DiscoverAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect);
 bool DiscoverAppHandleEvent(Window* win, const SDL_Event* event, SDL_FPoint localMouse);
-bool DiscoverAppWantsPointerCursor(Window* win, SDL_FPoint localMouse);
+
+CursorKind DiscoverAppGetCursorKind(Window* win, SDL_FPoint localMouse);
