@@ -101,6 +101,8 @@ bool AppWantsTextCursor(Window* win, SDL_FPoint localMouse) {
     switch (win->app) {
     case APP_LSTORAGE:
         return LStorageAppWantsTextCursor(win, localMouse);
+    case APP_BRAINFUCK:
+        return BfAppWantsTextCursor(win, localMouse);
     default:
         return false;
     }
