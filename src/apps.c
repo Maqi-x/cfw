@@ -154,3 +154,17 @@ void GetAppSize(App app, float* w, float* h) {
         break;
     }
 }
+
+TextFragment* GetAppDesc(App app, usize* count) {
+    switch (app) {
+    case APP_LSTORAGE:
+        if (count) *count = alen(LStorageDesc);
+        return LStorageDesc;
+    case APP_BRAINFUCK:
+        if (count) *count = alen(BfDesc);
+        return BfDesc;
+    default:
+        if (count) *count = 0;
+        return NULL;
+    }
+}

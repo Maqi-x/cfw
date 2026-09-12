@@ -2,10 +2,13 @@
 #include <windows.h>
 
 #include <fonts.h>
+#include <utils.h>
 #include <apps.h>
+#include <ft.h>
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define TITLEBAR_COLOR_FOCUS   21, 21, 28, 255
 #define TITLEBAR_COLOR_NOFOCUS 13, 13, 18, 255
@@ -17,7 +20,11 @@
 #define BORDER_COLOR_NOFOCUS 40, 40, 48, 255
 
 #define CLOSE_HOVER_COLOR 215, 50, 50, 255
-#define X_MARK_COLOR      240, 240, 240, 255
+#define INFO_HOVER_COLOR  53, 130, 220, 255
+#define BTN_ICON_COLOR    240, 240, 240, 255
+
+#define INFO_BG_COLOR 24, 24, 30, 255
+#define INFO_PAD      16.0f
 
 #define SetColor(IS_FOCUSED, NAME)                        \
     if (IS_FOCUSED) {                                     \
@@ -55,6 +62,10 @@ static uint numWindows = 0;
 // cool windows xp like effect
 static float cascadeOffset;
 
+// for the info/help button
+static TTF_Text
+    *infoText, *backText;
+
 static SDL_FRect GetTitlebarRect(const Window* win) {
     return (SDL_FRect) {
         .x = win->rect.x,
@@ -66,6 +77,14 @@ static SDL_FRect GetTitlebarRect(const Window* win) {
 static SDL_FRect GetCloseBtnRect(const Window* win) {
     return (SDL_FRect) {
         .x = win->rect.x + win->rect.w - TITLEBAR_HEIGHT,
+        .y = win->rect.y,
+        .w = TITLEBAR_HEIGHT,
+        .h = TITLEBAR_HEIGHT
+    };
+}
+static SDL_FRect GetInfoBtnRect(const Window* win) {
+    return (SDL_FRect) {
+        .x = win->rect.x + win->rect.w - TITLEBAR_HEIGHT * 2.0f,
         .y = win->rect.y,
         .w = TITLEBAR_HEIGHT,
         .h = TITLEBAR_HEIGHT
@@ -88,7 +107,103 @@ static SDL_FRect GetTotalWindowRect(const Window* win) {
     };
 }
 
+static bool WindowHasDesc(const Window* win) {
+    return GetAppDesc(win->app, NULL) != NULL;
+}
+
+static void ClampInfoScroll(Window* win) {
+    if (win->infoFt == NULL) {
+        win->infoScroll = (Scroll){0};
+        return;
+    }
+
+    uint fw = 0, fh = 0;
+    FTGetSize(win->infoFt, &fw, &fh);
+
+    float maxScroll = (float)fh - (win->rect.h - INFO_PAD * 2.0f);
+    ScrollClamp(&win->infoScroll, maxScroll);
+}
+
+static void HideWindowInfo(Window* win) {
+    if (!win->showingInfo) return;
+    win->showingInfo = false;
+    win->infoScroll = (Scroll){0};
+
+    if (win->isFocused)
+        ChangeAppFocus(win, true);
+}
+
+static bool ShowWindowInfo(Window* win) {
+    usize count = 0;
+    TextFragment* frags = GetAppDesc(win->app, &count);
+    if (frags == NULL) return false;
+
+    if (win->infoFt == NULL) {
+        win->infoFt = CreateFT(tengine, GetStyle());
+        assert(win->infoFt != NULL);;
+    }
+
+    uint width = (uint)(win->rect.w - INFO_PAD * 2.0f);
+    if (width < 1) width = 1;
+
+    FTSetWidth(win->infoFt, width);
+    if (!FTSetFragments(win->infoFt, frags, count))
+        return false;
+
+    win->infoScroll = (Scroll){0};
+    win->showingInfo = true;
+    if (win->isFocused)
+        ChangeAppFocus(win, false);
+    return true;
+}
+
+static void ToggleWindowInfo(Window* win) {
+    if (win->showingInfo)
+        HideWindowInfo(win);
+    else
+        ShowWindowInfo(win);
+}
+
+static void DestroyWindowInfo(Window* win) {
+    win->showingInfo = false;
+    win->infoScroll = (Scroll){0};
+    if (win->infoFt != NULL) {
+        DestroyFT(win->infoFt);
+        win->infoFt = NULL;
+    }
+}
+
+static const char* GetInfoLinkAt(const Window* win, SDL_FPoint mouse) {
+    if (!win->showingInfo || win->infoFt == NULL) return NULL;
+
+    SDL_FRect contentRect = GetContentRect(win);
+    if (!SDL_PointInRectFloat(&mouse, &contentRect)) return NULL;
+
+    float x = mouse.x - contentRect.x - INFO_PAD;
+    float y = mouse.y - contentRect.y - INFO_PAD + win->infoScroll.curr;
+    return FTGetLinkAt(win->infoFt, x, y);
+}
+
+static void RenderWindowInfo(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
+    SDL_SetRenderDrawColor(renderer, INFO_BG_COLOR);
+    SDL_RenderFillRect(renderer, &contentRect);
+
+    if (win->infoFt == NULL) return;
+
+    uint width = (uint)(contentRect.w - INFO_PAD * 2.0f);
+    if (width < 1) width = 1;
+
+    FTSetWidth(win->infoFt, width);
+    ClampInfoScroll(win);
+
+    FTDraw(win->infoFt,
+        contentRect.x + INFO_PAD,
+        contentRect.y + INFO_PAD - win->infoScroll.curr);
+}
+
 static bool TryHandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint mouse) {
+    if (win->showingInfo) return false;
+
     SDL_FRect contentRect = GetContentRect(win);
     if (SDL_PointInRectFloat(&mouse, &contentRect)) {
         SDL_FPoint local = {
@@ -101,20 +216,42 @@ static bool TryHandleAppEvent(Window* win, const SDL_Event* event, SDL_FPoint mo
     return false;
 }
 
+static void FreeWindowResources(Window* win) {
+    DestroyWindowInfo(win);
+    CleanupApp(win);
+    if (win->titleText != NULL) {
+        TTF_DestroyText(win->titleText);
+        win->titleText = NULL;
+    }
+}
+
+static void RemoveWindowAt(int index) {
+    if (index < 0 || index >= (int)numWindows) return;
+    for (int i = index; i < (int)numWindows - 1; ++i) {
+        windows[i] = windows[i + 1];
+    }
+    numWindows--;
+}
+
 void InitWindows() {
     memset(windows, 0, sizeof(windows));
     numWindows = 0;
     cascadeOffset = 0.0f;
+
+    infoText = TTF_CreateText(tengine, f.code, "?", 1);
+    backText = TTF_CreateText(tengine, f.code, "-", 1);
+
+    assert(infoText != NULL && backText != NULL);
+    TTF_SetTextColor(infoText, BTN_ICON_COLOR);
 }
 
 void DeinitWindows() {
-    WITER(win, {
-        CleanupApp(win);
-        if (win->titleText != NULL) {
-            TTF_DestroyText(win->titleText);
-        }
-        free(win);
-    });
+    WITER(win,
+        FreeWindowResources(win);
+    );
+
+    TTF_DestroyText(infoText);
+    TTF_DestroyText(backText);
 }
 
 Window* WindowCreate(App app) {
@@ -175,11 +312,7 @@ Window* WindowCreate(App app) {
 
 void WindowReplaceApp(Window* win, App newApp) {
     if (win == NULL) return;
-
-    CleanupApp(win);
-    if (win->titleText != NULL) {
-        TTF_DestroyText(win->titleText);
-    }
+    FreeWindowResources(win);
 
     win->app = newApp;
     win->title = GetAppTitle(newApp);
@@ -208,15 +341,8 @@ void WindowDestroy(Window* win) {
     int foundIdx = GetWindowIndex(win);
     if (foundIdx == -1) return;
 
-    for (int i = foundIdx; i < numWindows - 1; ++i) {
-        windows[i] = windows[i+1];
-    }
-    numWindows--;
-
-    CleanupApp(win);
-    if (win->titleText != NULL) {
-        TTF_DestroyText(win->titleText);
-    }
+    RemoveWindowAt(foundIdx);
+    FreeWindowResources(win);
     free(win);
 
     Window* top = WTOP();
@@ -231,17 +357,15 @@ void WindowBringToFront(Window* win) {
 
     int foundIdx = GetWindowIndex(win);
     if (foundIdx != -1) {
-        for (int i = foundIdx; i < numWindows - 1; ++i) {
-            windows[i] = windows[i+1];
-        }
-        windows[numWindows - 1] = win;
+        RemoveWindowAt(foundIdx);
+        windows[numWindows++] = win;
     }
 
     WITER(w, {
         bool oldFocused = w->isFocused;
         w->isFocused = (w == win);
         if (oldFocused != w->isFocused) {
-            ChangeAppFocus(w, w->isFocused);
+            ChangeAppFocus(w, w->isFocused && !w->showingInfo);
         }
     });
 }
@@ -259,7 +383,34 @@ SDL_FRect GetWindowContentRect(Window* window) {
     };
 }
 
-void RenderWindows(SDL_Renderer* renderer) {
+void DrawInfoButton(Window* win, SDL_FRect* infoRect, SDL_FPoint mouse) {
+    bool infoHovered = SDL_PointInRectFloat(&mouse, infoRect);
+    if (infoHovered || win->showingInfo) {
+        SDL_SetRenderDrawColor(renderer, INFO_HOVER_COLOR);
+        SDL_RenderFillRect(renderer, infoRect);
+    }
+
+    // again, the width is the same so we can just calculte width of one text
+    // and use it for layout calculation when the other one is used
+    int qw = 0, qh = 0;
+    TTF_GetTextSize(infoText, &qw, &qh);
+
+    float qx = infoRect->x + (infoRect->w - qw) / 2.0f;
+    float qy = infoRect->y + (infoRect->h - qh) / 2.0f;
+
+    TTF_DrawRendererText(
+        win->showingInfo ? backText : infoText,
+        qx, qy);
+}
+
+void RenderWindows(SDL_Renderer* renderer, float dt) {
+    WITER(win, {
+        if (win->showingInfo) {
+            ScrollUpdate(&win->infoScroll, dt);
+            ClampInfoScroll(win);
+        }
+    });
+
     float mx = 0.0f, my = 0.0f;
     SDL_GetMouseState(&mx, &my);
     SDL_FPoint mouse = { mx, my };
@@ -269,6 +420,7 @@ void RenderWindows(SDL_Renderer* renderer) {
             totalRect   = GetTotalWindowRect(win),
             titleRect   = GetTitlebarRect(win),
             closeRect   = GetCloseBtnRect(win),
+            infoRect    = GetInfoBtnRect(win),
             contentRect = GetContentRect(win);
 
         // i wish there were some function like SDL_RectFromFRect
@@ -279,7 +431,10 @@ void RenderWindows(SDL_Renderer* renderer) {
 
         // "app" content //
         SDL_SetRenderClipRect(renderer, &contentClip);
-        RenderApp(win, renderer, contentRect);
+        if (win->showingInfo)
+            RenderWindowInfo(win, renderer, contentRect);
+        else
+            RenderApp(win, renderer, contentRect);
 
         // dark overlay for non focused windows so its
         // actually visible which window is the active one
@@ -310,6 +465,11 @@ void RenderWindows(SDL_Renderer* renderer) {
         SetTextColor(win->isFocused, win->titleText, TITLE_COLOR);
         TTF_DrawRendererText(win->titleText, tx, ty);
 
+        // info, help button //
+        if (WindowHasDesc(win)) {
+            DrawInfoButton(win, &infoRect, mouse);
+        }
+
         // close button //
         bool closeHovered = SDL_PointInRectFloat(&mouse, &closeRect);
         if (closeHovered) {
@@ -322,7 +482,7 @@ void RenderWindows(SDL_Renderer* renderer) {
         float d = 4.5f;
 
         // X //
-        SDL_SetRenderDrawColor(renderer, X_MARK_COLOR);
+        SDL_SetRenderDrawColor(renderer, BTN_ICON_COLOR);
         SDL_RenderLine(renderer, cx - d + 0.5f, cy - d, cx + d + 0.5f, cy + d);
         SDL_RenderLine(renderer, cx + d + 0.5f, cy - d, cx - d + 0.5f, cy + d);
 
@@ -346,6 +506,14 @@ static bool HandleDownLMB(const SDL_Event* event, SDL_FPoint mouse) {
                 return true;
             }
 
+            if (WindowHasDesc(win)) {
+                SDL_FRect infoRect = GetInfoBtnRect(win);
+                if (SDL_PointInRectFloat(&mouse, &infoRect)) {
+                    ToggleWindowInfo(win);
+                    return true;
+                }
+            }
+
             SDL_FRect titleRect = GetTitlebarRect(win);
             if (SDL_PointInRectFloat(&mouse, &titleRect)) {
                 win->isDragging = true;
@@ -353,6 +521,14 @@ static bool HandleDownLMB(const SDL_Event* event, SDL_FPoint mouse) {
                     mouse.x - win->rect.x,
                     mouse.y - win->rect.y,
                 };
+                return true;
+            }
+
+            if (win->showingInfo) {
+                const char* url = GetInfoLinkAt(win, mouse);
+                if (url != NULL)
+                    SDL_OpenURL(url);
+
                 return true;
             }
 
@@ -374,7 +550,7 @@ static bool HandleUpLMB(const SDL_Event* event, SDL_FPoint mouse) {
     });
 
     Window* top = WTOP();
-    if (top != NULL) {
+    if (top != NULL && !top->showingInfo) {
         SDL_FRect contentRect = GetContentRect(top);
         SDL_FPoint local = {
             mouse.x - contentRect.x,
@@ -415,10 +591,17 @@ bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse) {
      || event->type == SDL_EVENT_TEXT_EDITING
      || event->type == SDL_EVENT_TEXT_EDITING_CANDIDATES) {
         Window* top = WTOP();
-        if (top != NULL) {
-            return HandleAppEvent(top, event, (SDL_FPoint) { 0.0f, 0.0f });
+        if (top == NULL) return false;
+
+        if (top->showingInfo) {
+            if (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_ESCAPE) {
+                HideWindowInfo(top);
+                return true;
+            }
+            return true;
         }
-        return false;
+
+        return HandleAppEvent(top, event, (SDL_FPoint) { 0.0f, 0.0f });
     }
 
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
@@ -434,8 +617,14 @@ bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse) {
     } else if (event->type == SDL_EVENT_MOUSE_WHEEL) {
         if (IsMouseOverWindow(mouse)) {
             Window* top = WTOP();
-            if (top != NULL)
-                TryHandleAppEvent(top, event, mouse);
+            if (top != NULL) {
+                if (top->showingInfo) {
+                    ScrollOnWheel(&top->infoScroll, event->wheel.y);
+                    ClampInfoScroll(top);
+                } else {
+                    TryHandleAppEvent(top, event, mouse);
+                }
+            }
 
             return true;
         }
@@ -466,8 +655,20 @@ CursorKind WindowsGetCursorKind(SDL_FPoint mouse) {
             if (SDL_PointInRectFloat(&mouse, &closeRect))
                 return CPOINTER;
 
+            if (WindowHasDesc(win)) {
+                SDL_FRect infoRect = GetInfoBtnRect(win);
+                if (SDL_PointInRectFloat(&mouse, &infoRect))
+                    return CPOINTER;
+            }
+
             SDL_FRect contentRect = GetContentRect(win);
             if (SDL_PointInRectFloat(&mouse, &contentRect)) {
+                if (win->showingInfo) {
+                    if (GetInfoLinkAt(win, mouse) != NULL)
+                        return CPOINTER;
+                    return CARROW;
+                }
+
                 SDL_FPoint local = { mouse.x - contentRect.x, mouse.y - contentRect.y };
                 return AppGetCursorKind(win, local);
             }

@@ -21,10 +21,7 @@
 int w, h;
 uint64_t lastTicks;
 
-struct {
-    float curr;
-    float target;
-} scroll;
+Scroll scroll;
 
 SDL_Window*   window;
 SDL_Renderer* renderer;
@@ -55,20 +52,12 @@ Button demosBtn;
 
 bool running = true;
 
-static void clamp(float* value, float max) {
-    if (*value > max) *value = max;
-    if (*value < 0)   *value = 0;
-}
-
 static void EnsureScrollInBounds() {
     uint bw, bh;
     FTGetSize(body, &bw, &bh);
 
     float maxScroll = (float)bh - (h - CONTENT_Y);
-    if (maxScroll < 0) maxScroll = 0;
-
-    clamp(&scroll.target, maxScroll);
-    clamp(&scroll.curr,   maxScroll);
+    ScrollClamp(&scroll, maxScroll);
 }
 
 static void UpdateLayout() {
@@ -78,8 +67,7 @@ static void UpdateLayout() {
 }
 
 static void UpdateScroll(float dt) {
-    float factor = 1.0f - exp(-SCROLL_SPEED * dt);
-    scroll.curr += (scroll.target - scroll.curr) * factor;
+    ScrollUpdate(&scroll, dt);
 }
 
 static void LayoutGamesDemosButton() {
@@ -224,7 +212,7 @@ static void MainLoop() {
 
             switch (event.type) {
             case SDL_EVENT_MOUSE_WHEEL:
-                scroll.target -= event.wheel.y * SCROLL_WHEEL_STEP;
+                ScrollOnWheel(&scroll, event.wheel.y);
                 EnsureScrollInBounds();
                 break;
 
@@ -248,7 +236,7 @@ static void MainLoop() {
 
     DrawBodytext();
     DrawTopbar();
-    RenderWindows(renderer);
+    RenderWindows(renderer, dt);
 
     SDL_RenderPresent(renderer);
 
@@ -301,16 +289,10 @@ bool init() {
 
     demosBtn = BtnCreate(f.bold, "Games and demos");
 
-    Style style = {
-        .normal = f.normal, .bold = f.bold, .italic = f.italic,
-        .textColor = textColor, .linkColor = linkColor,
-        .h1 = f.h1, .h2 = f.h2, .code = f.code,
-    };
-
-    title = CreateFT(tengine, &style);
+    title = CreateFT(tengine, GetStyle());
     if (title == NULL) E(CreateFT);
 
-    body = CreateFT(tengine, &style);
+    body = CreateFT(tengine, GetStyle());
     if (body == NULL) E(CreateFT);
 
     if (!FTSetFragments(title, tTitle, sizeof(tTitle) / sizeof(tTitle[0])))

@@ -4,6 +4,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 
 #include <windows.h>
+#include <ft.h>
 
 void InitApp(Window* win);
 void CleanupApp(Window* win);
@@ -16,3 +17,4 @@ void ChangeAppFocus(Window* win, bool focused);
 
 const char* GetAppTitle(App app);
 void GetAppSize(App app, float* w, float* h);
+TextFragment* GetAppDesc(App app, usize* count);

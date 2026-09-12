@@ -19,6 +19,18 @@
 #define TOTAL_ICON_SIZE \
     (ICON_SIZE + ICON_PADDING)
 
+#define APPS_PER_SECTION 3
+
+typedef struct {
+    App app;
+    const char* path;
+} AppInfo;
+
+typedef struct {
+    const char* title;
+    AppInfo apps[APPS_PER_SECTION];
+} Section;
+
 typedef struct {
     App app;
     SDL_Texture* tex;

@@ -15,6 +15,8 @@ typedef enum {
 #define STRINGIFY(x) _STRINGIFY(x)
 
 #define vlen VECTOR_SIZE
+#define alen(arr) \
+    sizeof(arr) / sizeof(arr[0])
 
 // i just learned that C23 has unreachable() macro
 // in the standard library, so we need to guard this
@@ -24,6 +26,9 @@ typedef enum {
 #endif
 
 #define fallthrough __attribute__((fallthrough))
+
+#define used_but_the_compiler_is_stupid_and_thinks_that_it_is_unused \
+    __attribute__((unused))
 
 typedef struct TTF_TextEngine TTF_TextEngine;
 typedef struct SDL_Renderer SDL_Renderer;

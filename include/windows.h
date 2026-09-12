@@ -6,6 +6,7 @@
 
 #include <stdbool.h>
 #include <defs.h>
+#include <utils.h>
 
 #define TITLEBAR_HEIGHT 30.0f
 
@@ -18,6 +19,8 @@ typedef enum {
     APP_SNAKE,
 } App;
 
+typedef struct FT FT;
+
 typedef struct Window {
     App app;
 
@@ -29,6 +32,10 @@ typedef struct Window {
 
     bool isDragging;
     SDL_FPoint dragOffset;
+
+    bool showingInfo;
+    FT* infoFt;
+    Scroll infoScroll;
 
     void* userData;
 } Window;
@@ -44,7 +51,7 @@ void WindowFocus(Window* win);
 
 SDL_FRect GetWindowContentRect(Window* window);
 
-void RenderWindows(SDL_Renderer* renderer);
+void RenderWindows(SDL_Renderer* renderer, float dt);
 bool HandleWindowEvent(const SDL_Event* event, SDL_FPoint mouse);
 
 bool IsMouseOverWindow(SDL_FPoint mouse);

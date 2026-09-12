@@ -1,11 +1,40 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <math.h>
+
 #include <config.h>
+#include <fonts.h>
 
 // winapi grade coding
 #define MAX(p, q) (((p) > (q)) ? (p) : (q))
 #define MIN(p, q) (((p) < (q)) ? (p) : (q))
+
+typedef struct {
+    float curr;
+    float target;
+} Scroll;
+
+static inline void ScrollUpdate(Scroll* scroll, float dt) {
+    float factor = 1.0f - expf(-SCROLL_SPEED * dt);
+    scroll->curr += (scroll->target - scroll->curr) * factor;
+}
+
+static inline void Clamp(float* value, float max) {
+    if (*value > max) *value = max;
+    if (*value < 0)   *value = 0;
+}
+
+static inline void ScrollClamp(Scroll* scroll, float maxScroll) {
+    if (maxScroll < 0.0f) maxScroll = 0;
+
+    Clamp(&scroll->target, maxScroll);
+    Clamp(&scroll->curr,   maxScroll);
+}
+
+static inline void ScrollOnWheel(Scroll* scroll, float wheelY) {
+    scroll->target -= wheelY * SCROLL_WHEEL_STEP;
+}
 
 static inline SDL_Texture* LoadTexPNG(const char* file) {
     SDL_Surface* surf = SDL_LoadPNG(file);
@@ -23,6 +52,23 @@ static inline SDL_Texture* LoadTexPNG(const char* file) {
     }
 
     return tex;
+}
+
+static inline Style* GetStyle() {
+    static Style style;
+    static bool initialized;
+
+    if (!initialized)
+        initialized = true,
+        style = (Style) {
+            .normal = f.normal, .bold = f.bold, .italic = f.italic,
+            .h1 = f.h1, .h2 = f.h2, .code = f.code,
+
+            .textColor = textColor,
+            .linkColor = linkColor,
+        };
+
+    return &style;
 }
 
 static inline SDL_FRect OffsetRect(SDL_FRect content, SDL_FRect local) {
