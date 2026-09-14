@@ -243,6 +243,7 @@ void InitWindows() {
 
     assert(infoText != NULL && backText != NULL);
     TTF_SetTextColor(infoText, BTN_ICON_COLOR);
+    TTF_SetTextColor(backText, BTN_ICON_COLOR);
 }
 
 void DeinitWindows() {
@@ -395,8 +396,8 @@ void DrawInfoButton(Window* win, SDL_FRect* infoRect, SDL_FPoint mouse) {
     int qw = 0, qh = 0;
     TTF_GetTextSize(infoText, &qw, &qh);
 
-    float qx = infoRect->x + (infoRect->w - qw) / 2.0f;
-    float qy = infoRect->y + (infoRect->h - qh) / 2.0f;
+    float qx = SDL_roundf(infoRect->x + (infoRect->w - qw) / 2.0f);
+    float qy = SDL_roundf(infoRect->y + (infoRect->h - qh) / 2.0f);
 
     TTF_DrawRendererText(
         win->showingInfo ? backText : infoText,
