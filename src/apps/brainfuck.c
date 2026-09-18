@@ -5,14 +5,19 @@
 #include <defs.h>
 #include <utils.h>
 #include <btn.h>
+#include <bf.h>
 
 #include <stdlib.h>
 #include <assert.h>
 #include <tgmath.h>
 
+#include <SDL3/SDL_thread.h>
+#include <SDL3/SDL_mutex.h>
+
 #define BG_COLOR   18,  18,  20,  255
-#define EDIT_BG    14,  14,  20,  255
+#define OUT_BG     14,  14,  14,  255
 #define TEXT_COLOR 240, 240, 240, 255
+#define ERR_COLOR  191, 42,  42,  255
 
 #define PAD     16.0f
 #define BTN_GAP 12.0f
@@ -21,8 +26,8 @@
 #define BTN_NONE NUM_BTNS
 
 #define AVAILABLE_WIDTH (BF_WIDTH - 3.0f * PAD)
-#define INPUT_WIDTH     (AVAILABLE_WIDTH * 0.60f)
-#define OUTPUT_WIDTH    (AVAILABLE_WIDTH * 0.40f)
+#define INPUT_WIDTH     (AVAILABLE_WIDTH * 0.54f)
+#define OUTPUT_WIDTH    (AVAILABLE_WIDTH * 0.46f)
 #define OUTPUT_X        (INPUT_WIDTH + 2 * PAD)
 
 typedef struct {
@@ -34,6 +39,12 @@ typedef struct {
 
     Button runBtn;
     Button clearBtn;
+
+    struct {
+        BfIoState io;
+        SDL_Thread* thread;
+        Instruction prog[PROGRAM_SIZE];
+    } bf;
 } State;
 
 static void LayoutButtons(State* state) {
@@ -62,20 +73,62 @@ static bool PointInEditRect(const State* state, SDL_FPoint localMouse) {
     return SDL_PointInRectFloat(&localMouse, &state->editRect);
 }
 
+static void StopThread(State* state) {
+    if (state->bf.thread) {
+        state->bf.io.stop = true;
+        SDL_LockMutex(state->bf.io.m);
+            if (state->bf.io.c) {
+                SDL_SignalCondition(state->bf.io.c);
+            }
+        SDL_UnlockMutex(state->bf.io.m);
+
+        SDL_WaitThread(state->bf.thread, NULL);
+        state->bf.thread = NULL;
+    }
+}
+
+static int BfWorker(void* data) {
+    State* state = data;
+    RunBrainfuck(state->bf.prog, &state->bf.io);
+    return 1 + 2 - 8;
+}
+
 static void Run(State* state) {
-    unreachable();
+    StopThread(state);
+    state->bf.io.outLen = 0;
+    state->bf.io.inLen = 0;
+    state->bf.io.inPos = 0;
+    state->bf.io.stop = false;
+
+    if (CompileBrainfuck(state->edit->text->text, state->bf.prog)) {
+        state->bf.thread = SDL_CreateThread(BfWorker, "bf", state);
+        TTF_SetTextColor(state->outputText, TEXT_COLOR);
+    } else {
+        TTF_SetTextString(state->outputText, "Compilation Error!\nUnmatched delimiters", 0);
+        TTF_SetTextColor(state->outputText, ERR_COLOR);
+    }
 }
 
 #define PRETTY_MUCH_EMPTY_STRING ""
 static void Clear(State* state) {
+    StopThread(state);
     TTF_SetTextString(state->edit->text, PRETTY_MUCH_EMPTY_STRING, 0);
+
+    SDL_LockMutex(state->bf.io.m);
+        state->bf.io.outLen = 0;
+    SDL_UnlockMutex(state->bf.io.m);
+
+    TTF_SetTextString(state->outputText, "", 0);
 }
 
 void BfAppInit(Window* win) {
-    State* state = malloc(sizeof(State));
+    State* state = calloc(1, sizeof(State));
     assert(state != NULL);
 
-    state->runBtn = BtnCreateBg(f.bold, "Run", BG_COLOR);
+    state->bf.io.m = SDL_CreateMutex();
+    state->bf.io.c = SDL_CreateCondition();
+
+    state->runBtn   = BtnCreateBg(f.bold, "Run",   BG_COLOR);
     state->clearBtn = BtnCreateBg(f.bold, "Clear", BG_COLOR);
     LayoutButtons(state);
 
@@ -93,7 +146,7 @@ void BfAppInit(Window* win) {
         .h = state->runBtn.rect.y - 2.0f * PAD,
     };
 
-    state->outputText = TTF_CreateText(tengine, f.code, "PLACEHOLDER", 0);
+    state->outputText = TTF_CreateText(tengine, f.code, "", 0);
     assert(state->outputText != NULL);
 
     TTF_SetTextColor(state->outputText, 150, 150, 150, 255);
@@ -117,6 +170,10 @@ void BfAppCleanup(Window* win) {
     State* state = win->userData;
     assert(state != NULL);
 
+    StopThread(state);
+    SDL_DestroyCondition(state->bf.io.c);
+    SDL_DestroyMutex(state->bf.io.m);
+
     TTF_DestroyText(state->outputText);
     EditBox_Destroy(state->edit);
     BtnDestroy(&state->runBtn);
@@ -130,6 +187,14 @@ void BfAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
     assert(state != NULL);
 
+    SDL_LockMutex(state->bf.io.m);
+        // prevents overriding the error message right away
+        if (state->bf.io.outLen != 0) {
+            TTF_SetTextString(state->outputText,
+                state->bf.io.outBuf, state->bf.io.outLen);
+        }
+    SDL_UnlockMutex(state->bf.io.m);
+
     SDL_SetRenderDrawColor(renderer, BG_COLOR);
     SDL_RenderFillRect(renderer, &contentRect);
 
@@ -137,7 +202,7 @@ void BfAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     EditBox_Draw(state->edit);
 
     SDL_FRect absOutputRect = OffsetRect(contentRect, state->outputRect);
-    SDL_SetRenderDrawColor(renderer, EDIT_BG);
+    SDL_SetRenderDrawColor(renderer, OUT_BG);
     SDL_RenderFillRect(renderer, &absOutputRect);
 
     TTF_DrawRendererText(state->outputText, absOutputRect.x + 8.0f, absOutputRect.y + 8.0f);
