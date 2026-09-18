@@ -11,13 +11,12 @@
 #include <assert.h>
 #include <tgmath.h>
 
-#include <SDL3/SDL_thread.h>
-#include <SDL3/SDL_mutex.h>
-
 #define BG_COLOR   18,  18,  20,  255
 #define OUT_BG     14,  14,  14,  255
-#define TEXT_COLOR 240, 240, 240, 255
-#define ERR_COLOR  191, 42,  42,  255
+
+#define TEXT_COLOR  240, 240, 240, 255
+#define ERR_COLOR   191, 42,  42,  255
+#define EMPTY_COLOR 3,   140, 252, 255
 
 #define PAD     16.0f
 #define BTN_GAP 12.0f
@@ -30,6 +29,8 @@
 #define OUTPUT_WIDTH    (AVAILABLE_WIDTH * 0.46f)
 #define OUTPUT_X        (INPUT_WIDTH + 2 * PAD)
 
+#define STEPS_PER_FRAME 5000
+
 typedef struct {
     EditBox* edit;
     SDL_FRect editRect;
@@ -40,11 +41,8 @@ typedef struct {
     Button runBtn;
     Button clearBtn;
 
-    struct {
-        BfIoState io;
-        SDL_Thread* thread;
-        Instruction prog[PROGRAM_SIZE];
-    } bf;
+    Instruction prog[PROGRAM_SIZE];
+    BfContext ctx;
 } State;
 
 static void LayoutButtons(State* state) {
@@ -73,37 +71,21 @@ static bool PointInEditRect(const State* state, SDL_FPoint localMouse) {
     return SDL_PointInRectFloat(&localMouse, &state->editRect);
 }
 
-static void StopThread(State* state) {
-    if (state->bf.thread) {
-        state->bf.io.stop = true;
-        SDL_LockMutex(state->bf.io.m);
-            if (state->bf.io.c) {
-                SDL_SignalCondition(state->bf.io.c);
-            }
-        SDL_UnlockMutex(state->bf.io.m);
-
-        SDL_WaitThread(state->bf.thread, NULL);
-        state->bf.thread = NULL;
-    }
-}
-
-static int BfWorker(void* data) {
-    State* state = data;
-    RunBrainfuck(state->bf.prog, &state->bf.io);
-    return 1 + 2 - 8;
-}
-
 static void Run(State* state) {
-    StopThread(state);
-    state->bf.io.outLen = 0;
-    state->bf.io.inLen = 0;
-    state->bf.io.inPos = 0;
-    state->bf.io.stop = false;
+    TTF_Text* t = state->edit->text;
+    if (t->text == NULL || t->text[0] == '\0') {
+        state->ctx.running = false;
+        TTF_SetTextString(state->outputText, "No input provided!", 0);
+        TTF_SetTextColor(state->outputText, EMPTY_COLOR);
+        return;
+    }
 
-    if (CompileBrainfuck(state->edit->text->text, state->bf.prog)) {
-        state->bf.thread = SDL_CreateThread(BfWorker, "bf", state);
+    if (CompileBrainfuck(state->edit->text->text, state->prog)) {
+        InitBrainfuck(&state->ctx);
+        TTF_SetTextString(state->outputText, "", 0);
         TTF_SetTextColor(state->outputText, TEXT_COLOR);
     } else {
+        state->ctx.running = false;
         TTF_SetTextString(state->outputText, "Compilation Error!\nUnmatched delimiters", 0);
         TTF_SetTextColor(state->outputText, ERR_COLOR);
     }
@@ -111,22 +93,15 @@ static void Run(State* state) {
 
 #define PRETTY_MUCH_EMPTY_STRING ""
 static void Clear(State* state) {
-    StopThread(state);
+    state->ctx.running = false;
     TTF_SetTextString(state->edit->text, PRETTY_MUCH_EMPTY_STRING, 0);
-
-    SDL_LockMutex(state->bf.io.m);
-        state->bf.io.outLen = 0;
-    SDL_UnlockMutex(state->bf.io.m);
-
+    state->ctx.outLen = 0;
     TTF_SetTextString(state->outputText, "", 0);
 }
 
 void BfAppInit(Window* win) {
     State* state = calloc(1, sizeof(State));
     assert(state != NULL);
-
-    state->bf.io.m = SDL_CreateMutex();
-    state->bf.io.c = SDL_CreateCondition();
 
     state->runBtn   = BtnCreateBg(f.bold, "Run",   BG_COLOR);
     state->clearBtn = BtnCreateBg(f.bold, "Clear", BG_COLOR);
@@ -170,9 +145,7 @@ void BfAppCleanup(Window* win) {
     State* state = win->userData;
     assert(state != NULL);
 
-    StopThread(state);
-    SDL_DestroyCondition(state->bf.io.c);
-    SDL_DestroyMutex(state->bf.io.m);
+    state->ctx.running = false;
 
     TTF_DestroyText(state->outputText);
     EditBox_Destroy(state->edit);
@@ -187,13 +160,10 @@ void BfAppRender(Window* win, SDL_Renderer* renderer, SDL_FRect contentRect) {
     State* state = win->userData;
     assert(state != NULL);
 
-    SDL_LockMutex(state->bf.io.m);
-        // prevents overriding the error message right away
-        if (state->bf.io.outLen != 0) {
-            TTF_SetTextString(state->outputText,
-                state->bf.io.outBuf, state->bf.io.outLen);
-        }
-    SDL_UnlockMutex(state->bf.io.m);
+    if (state->ctx.running) {
+        StepBrainfuck(state->prog, &state->ctx, STEPS_PER_FRAME);
+        TTF_SetTextString(state->outputText, state->ctx.outBuf, state->ctx.outLen);
+    }
 
     SDL_SetRenderDrawColor(renderer, BG_COLOR);
     SDL_RenderFillRect(renderer, &contentRect);

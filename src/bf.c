@@ -3,8 +3,7 @@
 
 #include <stdlib.h>
 
-#include <SDL3/SDL_thread.h>
-#include <SDL3/SDL_mutex.h>
+#include <string.h>
 
 // NOTE: Stolen from https://github.com/kgabis/brainfuck-c
 //       Credits to the original author: @kgabis
@@ -79,62 +78,69 @@ bool CompileBrainfuck(const char* code, Instruction prog[static PROGRAM_SIZE]) {
 
 // Stolen code ends here.
 
-bool RunBrainfuck(Instruction* prog, BfIoState* out) {
-    uchar* data = calloc(DATA_SIZE, 1);
-    if (data == NULL) return false;
+void InitBrainfuck(BfContext* ctx) {
+    memset(ctx->data, 0, sizeof(ctx->data));
+    ctx->pc = 0;
+    ctx->dp = 0;
+    ctx->outLen = 0;
+    ctx->inLen = 0;
+    ctx->inPos = 0;
+    ctx->running = true;
+}
 
-    uint dp = 0;
-    uint pc = 0;
-    bool success = true;
+bool StepBrainfuck(Instruction* prog, BfContext* ctx, usize maxSteps) {
+    if (!ctx->running) return false;
 
-    while (prog[pc].operator != OP_END) {
-        if (out->stop) {
-            success = false;
-            break;
-        }
-
-        switch (prog[pc].operator) {
+    usize steps = 0;
+    while (prog[ctx->pc].operator != OP_END && steps < maxSteps) {
+        switch (prog[ctx->pc].operator) {
         case OP_INC_DP:
-            dp = (dp + 1) % DATA_SIZE;
+            ctx->dp = (ctx->dp + 1) % DATA_SIZE;
             break;
         case OP_DEC_DP:
-            dp = (dp == 0) ? DATA_SIZE - 1 : dp - 1;
+            ctx->dp = (ctx->dp == 0) ? DATA_SIZE - 1 : ctx->dp - 1;
             break;
         case OP_INC_VAL:
-            data[dp]++;
+            ctx->data[ctx->dp]++;
             break;
         case OP_DEC_VAL:
-            data[dp]--;
+            ctx->data[ctx->dp]--;
             break;
 
         case OP_OUT:
-            SDL_LockMutex(out->m);
-            if (out->outLen < BF_OUT_BUF_SIZE) {
-                out->outBuf[out->outLen++] = data[dp];
+            if (ctx->outLen < BF_OUT_BUF_SIZE) {
+                ctx->outBuf[ctx->outLen++] = ctx->data[ctx->dp];
             }
-            SDL_UnlockMutex(out->m);
             break;
         case OP_IN:
             // TODO
             unreachable();
 
         case OP_JMP_FWD:
-            if (data[dp] == 0) {
-                pc = prog[pc].operand;
+            if (ctx->data[ctx->dp] == 0) {
+                ctx->pc = prog[ctx->pc].operand;
             }
             break;
         case OP_JMP_BCK:
-            if (data[dp] != 0) {
-                pc = prog[pc].operand;
+            if (ctx->data[ctx->dp] != 0) {
+                ctx->pc = prog[ctx->pc].operand;
             }
             break;
         }
 
-        if (!success) break;
-        pc++;
+        ctx->pc++;
+        steps++;
     }
 
-    free(data);
-    return success;
+    if (prog[ctx->pc].operator == OP_END) {
+        ctx->running = false;
+    }
+
+    return ctx->running;
+}
+
+bool RunBrainfuck(Instruction* prog, BfContext* ctx) {
+    InitBrainfuck(ctx);
+    return StepBrainfuck(prog, ctx, (usize)-1);
 }
 

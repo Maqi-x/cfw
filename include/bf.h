@@ -1,11 +1,7 @@
 #pragma once
 
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <defs.h>
-
-typedef struct SDL_Mutex SDL_Mutex;
-typedef struct SDL_Condition SDL_Condition;
 
 // the output view in bf app does not support scrolling
 // anyway so having a bigger buffer is pointless you won't
@@ -17,6 +13,14 @@ typedef struct SDL_Condition SDL_Condition;
 // stuff or something
 #define BF_IN_BUF_SIZE  1024
 
+#define DATA_SIZE       65535
+#define PROGRAM_SIZE    4096
+
+typedef struct {
+    uint operator;
+    uint operand;
+} Instruction;
+
 typedef struct {
     // out
     char outBuf[BF_OUT_BUF_SIZE];
@@ -27,21 +31,15 @@ typedef struct {
     usize inLen;
     usize inPos;
 
-    // stop flag
-    _Atomic bool stop;
-
-    // very descriptive names
-    SDL_Mutex*     m;
-    SDL_Condition* c;
-} BfIoState;
-
-typedef struct {
-    uint operator;
-    uint operand;
-} Instruction;
-
-#define PROGRAM_SIZE 4096
+    // vm execution state
+    uchar data[DATA_SIZE];
+    uint pc;
+    uint dp;
+    bool running;
+} BfContext;
 
 bool CompileBrainfuck(const char* code, Instruction prog[static PROGRAM_SIZE]);
-bool RunBrainfuck(Instruction* prog, BfIoState* out);
+void InitBrainfuck(BfContext* ctx);
+bool StepBrainfuck(Instruction* prog, BfContext* ctx, usize maxSteps);
+bool RunBrainfuck(Instruction* prog, BfContext* ctx);
 
